@@ -26,7 +26,7 @@ namespace MetaStock.Controllers
         }
 
         // GET: /Stock/Detail/2330
-        public IActionResult Detail(string id = "2330")
+        public IActionResult Detail(string id)
         {
             ViewBag.StockId = id;
             ViewBag.Title = $"股票資訊 - {id}";
