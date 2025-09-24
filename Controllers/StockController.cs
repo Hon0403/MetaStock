@@ -1,10 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace MetaStock.Controllers
 {
@@ -49,20 +51,59 @@ namespace MetaStock.Controllers
             }
         }
 
-        // AJAX: 取得K線資料
-        [HttpGet]
-        public async Task<IActionResult> GetKLineData(string stockId, string timeframe = "D")
+        private List<string> GetMonthsForTimeframe(string timeframe)
+        {
+            var months = new List<string>();
+            var currentDate = DateTime.Now;
+
+            switch (timeframe.ToUpper())
+            {
+                case "7D":
+                case "10D":
+                case "15D":
+                    months.Add(currentDate.ToString("yyyyMM"));
+                    break;
+                case "1M":
+                    months.Add(currentDate.ToString("yyyyMM"));
+                    break;
+                case "3M":
+                    for (int i = 0; i < 3; i++)
+                        months.Add(currentDate.AddMonths(-i).ToString("yyyyMM"));
+                    break;
+                case "6M":
+                    for (int i = 0; i < 6; i++)
+                        months.Add(currentDate.AddMonths(-i).ToString("yyyyMM"));
+                    break;
+                case "1Y":
+                    for (int i = 0; i < 12; i++)
+                        months.Add(currentDate.AddMonths(-i).ToString("yyyyMM"));
+                    break;
+                default:
+                    months.Add(currentDate.ToString("yyyyMM"));
+                    break;
+            }
+
+            return months.Distinct().ToList();
+        }
+
+        private DateTime ConvertTaiwanDateToDateTime(string taiwanDate)
         {
             try
             {
-                var stockData = await FetchStockDataFromTwse(stockId);
-                var klineData = ProcessKLineData(stockData);
-                return Json(klineData);
+                var parts = taiwanDate.Split('/');
+                if (parts.Length == 3)
+                {
+                    var year = int.Parse(parts[0]) + 1911;
+                    var month = int.Parse(parts[1]);
+                    var day = int.Parse(parts[2]);
+                    return new DateTime(year, month, day);
+                }
             }
-            catch (Exception ex)
+            catch
             {
-                return Json(new { error = ex.Message });
+                // 日期轉換失敗時返回最小值
             }
+            return DateTime.MinValue;
         }
 
         // AJAX: 取得歷史資料

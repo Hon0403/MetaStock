@@ -5,349 +5,166 @@
 }
 
 <div class="container mt-4">
-    <!-- Market Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card stock-card h-100">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">加權指數</h6>
-                    <h4 class="price-up animate-number" id="taiexPrice">17,234.56</h4>
-                    <small class="price-up"><i class="fas fa-arrow-up"></i> +123.45 (+0.72%)</small>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 mb-3">
-            <div class="card stock-card h-100">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">櫃買指數</h6>
-                    <h4 class="price-down animate-number" id="otcPrice">234.12</h4>
-                    <small class="price-down"><i class="fas fa-arrow-down"></i> -2.34 (-0.99%)</small>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 mb-3">
-            <div class="card stock-card h-100">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">成交金額</h6>
-                    <h4 class="text-primary animate-number">2,456</h4>
-                    <small class="text-muted">億元</small>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3 mb-3">
-            <div class="card stock-card h-100">
-                <div class="card-body text-center">
-                    <h6 class="card-title text-muted">成交量</h6>
-                    <h4 class="text-primary animate-number">4.2</h4>
-                    <small class="text-muted">億股</small>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Stock Detail Section -->
     <div class="row mb-4">
         <div class="col-md-8">
             <!-- K-Line Chart -->
             <div class="chart-container">
+                <!-- 標題和按鈕區域 -->
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5><i class="fas fa-chart-candlestick me-2"></i><span id="stockTitle">2330 台積電</span> K線圖</h5>
-                    <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-sm btn-outline-primary active" onclick="changeTimeframe('D')">日線</button>
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="changeTimeframe('W')">週線</button>
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="changeTimeframe('M')">月線</button>
+                    <h5><i class="fas fa-chart-candlestick me-2"></i><span id="stockTitle">載入中...</span> K線圖</h5>
+
+                    <!-- 時間框架按鈕 -->
+                    <div class="btn-toolbar flex-wrap" role="toolbar">
+                        <!-- 短期分析 -->
+                        <div class="btn-group me-2 mb-2" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-success" onclick="changeTimeframe('7D')">
+                                近5日
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success" onclick="changeTimeframe('1M')">
+                                近1月
+                            </button>
+                        </div>
+
+                        <!-- 中長期分析 - 分成兩組 -->
+                        <div class="btn-group me-2 mb-2" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary active" onclick="changeTimeframe('3M')">
+                                近3月
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="changeTimeframe('6M')">
+                                近半年
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="changeTimeframe('1Y')">
+                                近1年
+                            </button>
+                        </div>
+
+                        <div class="btn-group me-2 mb-2" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="changeTimeframe('2Y')">
+                                近2年
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="changeTimeframe('5Y')">
+                                近5年
+                            </button>
+                        </div>
+
+                        <!-- 特殊範圍 -->
+                        <div class="btn-group mb-2" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="changeTimeframe('YTD')">
+                                年初至今
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="changeTimeframe('MAX')">
+                                全部歷史
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div id="klineChart" style="height: 400px;"></div>
+
+                <!-- K線圖區域 -->
+                <div class="position-relative">
+                    <!-- 載入指示器 -->
+                    <div id="klineLoadingIndicator" class="position-absolute top-50 start-50 translate-middle d-none" style="z-index: 1000;">
+                        <div class="bg-white p-3 rounded shadow text-center">
+                            <div class="spinner-border text-primary me-2" role="status">
+                                <span class="visually-hidden">載入中...</span>
+                            </div>
+                            <span>載入<span id="loadingTimeframe">資料</span>中，請稍候...</span>
+                        </div>
+                    </div>
+
+                    <!-- K線圖容器 -->
+                    <div id="klineChart" data-stock-id="@ViewBag.StockId"
+                         style="width: 800px; height: 550px; background: #fafafa; border: 1px solid #e0e0e0; border-radius: 4px; margin: 0 auto;">
+                    </div>
+                </div>
+
+                <!-- 資料統計 -->
+                <div class="row mt-3">
+                    <div class="col-md-8">
+                        <small class="text-muted">
+                            資料範圍：<span id="dataDateRange">--</span> |
+                            交易日數：<span id="tradingDays">--</span>
+                        </small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <small class="text-muted">
+                            最後更新：<span id="lastUpdateTime">--</span>
+                        </small>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="col-md-4">
-            <!-- Stock Info Card -->
+            <!-- 即時盯盤區 -->
+            <div class="card stock-card mb-3 realtime-panel">
+                <div class="card-header bg-success text-white">
+                    <div class="d-flex justify-content-between">
+                        <h6 class="mb-0">
+                            <i class="fas fa-broadcast-tower me-2"></i>即時盯盤
+                            <small class="realtime-dot" id="realtimeDot" data-stock-id="@ViewBag.StockId">●</small>
+                        </h6>
+                        <button class="btn btn-sm btn-outline-light" id="toggleMonitor">
+                            <i class="fas fa-play"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- 迷你K線圖 -->
+                    <div id="miniKLineChart" style="width: 100%; height: 200px; margin: 0 auto;"></div>
+
+                    <!-- 股價數字資訊放在下方 -->
+                    <div class="row mt-2 text-center">
+                        <div class="col-6">
+                            <small class="text-muted">市價</small>
+                            <div class="realtime-price fw-bold" id="realtimePrice">--</div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">漲跌</small>
+                            <div class="realtime-change fw-bold" id="realtimeChange">--</div>
+                        </div>
+                    </div>
+
+                    <small class="text-muted text-center d-block mt-2">
+                        更新時間：<span id="updateTime">--</span>
+                    </small>
+                </div>
+            </div>
+
             <div class="card stock-card mb-3">
-                <div class="card-header bg-primary text-white">
-                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>股票資訊</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-2">
-                        <div class="col-6"><strong>股票代號:</strong></div>
-                        <div class="col-6" id="stockId">2330</div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-6"><strong>股票名稱:</strong></div>
-                        <div class="col-6" id="stockName">台積電</div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-6"><strong>現價:</strong></div>
-                        <div class="col-6 price-up" id="currentPrice"><strong>594.00</strong></div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-6"><strong>漲跌:</strong></div>
-                        <div class="col-6 price-up" id="priceChange">+7.00 (+1.19%)</div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-6"><strong>成交量:</strong></div>
-                        <div class="col-6" id="volume">28,456 張</div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-6"><strong>本益比:</strong></div>
-                        <div class="col-6" id="pe">21.5</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Stats -->
-            <div class="card stock-card">
-                <div class="card-header bg-secondary text-white">
-                    <h6 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>今日統計</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-2">
-                        <div class="col-6">開盤價:</div>
-                        <div class="col-6" id="openPrice">589.00</div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-6">最高價:</div>
-                        <div class="col-6 price-up" id="highPrice">595.00</div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-6">最低價:</div>
-                        <div class="col-6 price-down" id="lowPrice">587.00</div>
-                    </div>
-                    <div class="row mb-2">
-                        <div class="col-6">昨收價:</div>
-                        <div class="col-6" id="prevClose">587.00</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Historical Data Table -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="data-table">
-                <div class="p-3 bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-table me-2"></i>歷史價格資料</h5>
-                    <button class="btn btn-sm btn-light" onclick="refreshData()">
-                        <i class="fas fa-refresh me-1"></i>更新資料
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>基本資訊</h6>
+                    <button class="btn btn-outline-light btn-sm" onclick="refreshData()">
+                        <i class="fas fa-refresh"></i>
                     </button>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0" id="historyTable">
-                        <thead>
-                            <tr>
-                                <th>日期</th>
-                                <th>開盤價</th>
-                                <th>最高價</th>
-                                <th>最低價</th>
-                                <th>收盤價</th>
-                                <th>成交量</th>
-                                <th>漲跌幅</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- 歷史資料將透過AJAX載入 -->
-                        </tbody>
-                    </table>
+                <div class="card-body">
+                    <!-- 合併股票資訊+今日統計 -->
+                    <div class="row">
+                        <div class="col-4">股票代號:</div>
+                        <div class="col-8" id="stockId">--</div>
+                        <div class="col-4">股票名稱:</div>
+                        <div class="col-8" id="stockName">--</div>
+
+                        <div class="col-4">收盤價:</div>
+                        <div class="col-4" id="closePrice"><strong>--</strong></div>
+                        <div class="col-4" id="dailyChange">--</div>
+
+                        <div class="col-4">開盤:</div>
+                        <div class="col-2" id="openPrice">--</div>
+                        <div class="col-4">最高:</div>
+                        <div class="col-2" id="highPrice">--</div>
+
+                        <div class="col-4">昨收:</div>
+                        <div class="col-2" id="prevClose">--</div>
+                        <div class="col-4">最低:</div>
+                        <div class="col-2" id="lowPrice">--</div>
+
+                        <div class="col-4">成交量:</div>
+                        <div class="col-8" id="volume">--</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-@section Scripts {
-<script>
-    var currentStockId = '@ViewBag.StockId' || '2330';
-    var klineChart;
-
-    // Initialize K-line chart
-    function initKLineChart() {
-        var chartDom = document.getElementById('klineChart');
-        klineChart = echarts.init(chartDom);
-        loadKLineData('D');
-    }
-
-    // Load K-line data
-    function loadKLineData(timeframe) {
-        $.ajax({
-            url: '@Url.Action("GetKLineData", "Stock")',
-            data: { stockId: currentStockId, timeframe: timeframe },
-            type: 'GET',
-            success: function(data) {
-                updateKLineChart(data);
-            },
-            error: function() {
-                console.log('無法載入K線資料');
-            }
-        });
-    }
-
-    // Update K-line chart
-    function updateKLineChart(data) {
-        var option = {
-            title: { text: '' },
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'cross' }
-            },
-            legend: { data: ['K線', '成交量'] },
-            grid: [
-                { left: '10%', right: '8%', height: '65%' },
-                { left: '10%', right: '8%', top: '75%', height: '16%' }
-            ],
-            xAxis: [
-                {
-                    type: 'category',
-                    data: data.dates,
-                    boundaryGap: false,
-                    axisLine: { onZero: false },
-                    splitLine: { show: false },
-                    min: 'dataMin',
-                    max: 'dataMax'
-                },
-                {
-                    type: 'category',
-                    gridIndex: 1,
-                    data: data.dates,
-                    boundaryGap: false,
-                    axisLine: { onZero: false },
-                    axisTick: { show: false },
-                    splitLine: { show: false },
-                    axisLabel: { show: false },
-                    min: 'dataMin',
-                    max: 'dataMax'
-                }
-            ],
-            yAxis: [
-                { scale: true, splitArea: { show: true } },
-                {
-                    scale: true,
-                    gridIndex: 1,
-                    splitNumber: 2,
-                    axisLabel: { show: false },
-                    axisLine: { show: false },
-                    axisTick: { show: false },
-                    splitLine: { show: false }
-                }
-            ],
-            series: [
-                {
-                    name: 'K線',
-                    type: 'candlestick',
-                    data: data.klineData,
-                    itemStyle: {
-                        color: '#ef4444',
-                        color0: '#10b981',
-                        borderColor: '#ef4444',
-                        borderColor0: '#10b981'
-                    }
-                },
-                {
-                    name: '成交量',
-                    type: 'bar',
-                    xAxisIndex: 1,
-                    yAxisIndex: 1,
-                    data: data.volumes
-                }
-            ]
-        };
-        klineChart.setOption(option);
-    }
-
-    // Change timeframe
-    function changeTimeframe(timeframe) {
-        $('.btn-group .btn').removeClass('active');
-        $(event.target).addClass('active');
-        loadKLineData(timeframe);
-    }
-
-    // Load stock data
-    function loadStockData() {
-        $.ajax({
-            url: '@Url.Action("GetStockData", "Stock")',
-            data: { stockId: currentStockId },
-            type: 'GET',
-            success: function(data) {
-                updateStockInfo(data);
-            },
-            error: function() {
-                console.log('無法載入股票資料');
-            }
-        });
-    }
-
-    // Update stock info
-    function updateStockInfo(data) {
-        $('#stockTitle').text(data.stockId + ' ' + data.stockName);
-        $('#stockId').text(data.stockId);
-        $('#stockName').text(data.stockName);
-        $('#currentPrice').text(data.currentPrice).removeClass('price-up price-down').addClass(data.priceChangeClass);
-        $('#priceChange').text(data.priceChange).removeClass('price-up price-down').addClass(data.priceChangeClass);
-        $('#volume').text(data.volume + ' 張');
-        $('#pe').text(data.pe || 'N/A');
-        $('#openPrice').text(data.openPrice);
-        $('#highPrice').text(data.highPrice);
-        $('#lowPrice').text(data.lowPrice);
-        $('#prevClose').text(data.prevClose);
-    }
-
-    // Load historical data
-    function loadHistoricalData() {
-        $.ajax({
-            url: '@Url.Action("GetHistoricalData", "Stock")',
-            data: { stockId: currentStockId },
-            type: 'GET',
-            success: function(data) {
-                updateHistoricalTable(data);
-            },
-            error: function() {
-                console.log('無法載入歷史資料');
-            }
-        });
-    }
-
-    // Update historical table
-    function updateHistoricalTable(data) {
-        var tbody = $('#historyTable tbody');
-        tbody.empty();
-
-        $.each(data, function(index, item) {
-            var changeClass = item.change >= 0 ? 'price-up' : 'price-down';
-            var row = '<tr>' +
-                '<td>' + item.date + '</td>' +
-                '<td>' + item.open + '</td>' +
-                '<td class="price-up">' + item.high + '</td>' +
-                '<td class="price-down">' + item.low + '</td>' +
-                '<td class="' + changeClass + '"><strong>' + item.close + '</strong></td>' +
-                '<td>' + item.volume + '</td>' +
-                '<td class="' + changeClass + '">' + item.changePercent + '</td>' +
-                '</tr>';
-            tbody.append(row);
-        });
-    }
-
-    // Refresh data
-    function refreshData() {
-        var button = $(event.target);
-        var originalText = button.html();
-        button.html('<span class="loading"></span> 更新中...').prop('disabled', true);
-
-        setTimeout(function() {
-            loadStockData();
-            loadHistoricalData();
-            button.html(originalText).prop('disabled', false);
-        }, 2000);
-    }
-
-    // Initialize page
-    $(document).ready(function() {
-        initKLineChart();
-        loadStockData();
-        loadHistoricalData();
-    });
-</script>
-}

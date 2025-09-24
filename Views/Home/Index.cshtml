@@ -2,6 +2,56 @@
     ViewData["Title"] = "Home Page";
 }
 
+<!-- 首頁 (Index.cshtml) -->
+<div class="container mt-4">
+    <!-- Market Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stock-card h-100">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">加權指數</h6>
+                    <h4 class="price-up animate-number" id="taiexPrice">**,***.**</h4>
+                    <small class="price-up"><i class="fas fa-arrow-up"></i> +***.** (+*.**%)</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stock-card h-100">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">櫃買指數</h6>
+                    <h4 class="price-down animate-number" id="otcPrice">***.**</h4>
+                    <small class="price-down"><i class="fas fa-arrow-down"></i> -*.** (-*.**%)</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stock-card h-100">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">成交金額</h6>
+                    <h4 class="text-primary animate-number">*,***</h4>
+                    <small class="text-muted">億元</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <div class="card stock-card h-100">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">成交量</h6>
+                    <h4 class="text-primary animate-number">*.*</h4>
+                    <small class="text-muted">億股</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 接下來是熱門股票、產業分類、即時新聞等 -->
+</div>
+
+
+
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
     <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>

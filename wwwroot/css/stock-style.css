@@ -111,3 +111,66 @@ body {
         transform: rotate(360deg);
     }
 }
+
+/* 即時盯盤區塊 */
+.realtime-panel {
+    border: 2px solid #10b981;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+
+
+.realtime-price {
+    font-size: 2rem;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+}
+
+.realtime-dot {
+    color: #6b7280;
+    animation: pulse 2s infinite;
+}
+
+    .realtime-dot.active {
+        color: #10b981;
+    }
+
+/* 漲跌數值的顏色樣式 */
+.change-up {
+    color: #ef4444 !important; /* 紅色上漲 */
+}
+
+.change-down {
+    color: #10b981 !important; /* 綠色下跌 */
+}
+
+.change-neutral {
+    color: #6b7280 !important; /* 灰色平盤 */
+}
+
+/* 價格閃爍效果 */
+.price-flash-up {
+    background-color: #10b981;
+    color: white;
+    animation: flash 1s ease-out;
+}
+
+.price-flash-down {
+    background-color: #ef4444;
+    color: white;
+    animation: flash 1s ease-out;
+}
+
+@keyframes flash {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
