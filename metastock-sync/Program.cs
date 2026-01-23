@@ -13,7 +13,6 @@ var supabaseUrl = "https://ilpzjjzaxqdmvlvpiukc.supabase.co";
 if (string.IsNullOrEmpty(supabaseKey))
 {
     Console.WriteLine("Error: SUPABASE_KEY not found in environment variables.");
-    // 本地測試請先執行: set SUPABASE_KEY=你的Key
     Environment.Exit(1);
 }
 
@@ -33,15 +32,25 @@ try
     var root = doc.RootElement;
     
     var dailyPrices = new List<object>();
+    var stocksList = new List<object>();
     var today = DateTime.Today.ToString("yyyy-MM-dd");
 
     // 3. 解析與轉換資料
     foreach (var item in root.EnumerateArray())
     {
         var code = item.GetProperty("Code").GetString();
+        var name = item.GetProperty("Name").GetString();
+        
         if (code.Length > 4) continue; // 過濾權證
 
-        // 解析各欄位
+        // [NEW] 收集股票基本資料
+        stocksList.Add(new {
+            stock_id = code,
+            name = name,
+            market = "TSE" // 證交所 API 都是上市股票，先暫定 TSE
+        });
+
+        // 解析股價各欄位
         if (decimal.TryParse(item.GetProperty("OpeningPrice").GetString(), out var open) &&
             decimal.TryParse(item.GetProperty("HighestPrice").GetString(), out var high) &&
             decimal.TryParse(item.GetProperty("LowestPrice").GetString(), out var low) &&
@@ -67,29 +76,45 @@ try
         }
     }
 
-    Console.WriteLine($"Prepared {dailyPrices.Count} records.");
+    Console.WriteLine($"Prepared {stocksList.Count} stocks and {dailyPrices.Count} prices.");
 
-    // 4. 分批寫入 Supabase (每 1000 筆一次)
-    var batchSize = 1000;
-    var batches = dailyPrices.Chunk(batchSize);
-
-    // 設定 Supabase Client Headers
+    // 設定 Supabase Client Headers (共用)
     httpClient.DefaultRequestHeaders.Clear();
     httpClient.DefaultRequestHeaders.Add("apikey", supabaseKey);
     httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {supabaseKey}");
     httpClient.DefaultRequestHeaders.Add("Prefer", "resolution=merge-duplicates"); // UPSERT
 
-    foreach (var batch in batches)
+    // 4. [NEW] 先寫入 Stocks (解決 Foreign Key 錯誤)
+    Console.WriteLine("Syncing stocks info...");
+    var stockBatches = stocksList.Chunk(1000); 
+    foreach (var batch in stockBatches)
     {
         var json = JsonSerializer.Serialize(batch);
         var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
+        // 注意：這裡是用 POST 到 /stocks
+        var response = await httpClient.PostAsync($"{supabaseUrl}/rest/v1/stocks", httpContent);
+        
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Failed to sync stocks batch: {error}");
+        }
+    }
+
+    // 5. 再寫入 Daily Prices
+    Console.WriteLine("Syncing daily prices...");
+    var priceBatches = dailyPrices.Chunk(1000);
+    foreach (var batch in priceBatches)
+    {
+        var json = JsonSerializer.Serialize(batch);
+        var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
+        // 注意：這裡是用 POST 到 /daily_prices
         var response = await httpClient.PostAsync($"{supabaseUrl}/rest/v1/daily_prices", httpContent);
         
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync();
-            Console.WriteLine($"Failed to sync batch: {error}");
-            // Continue syncing other batches even if one fails
+            Console.WriteLine($"Failed to sync prices batch: {error}");
         }
     }
 
