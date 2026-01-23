@@ -1,0 +1,34 @@
+name: Daily Stock Sync
+
+on:
+  schedule:
+    # 設定排程時間 (這是 UTC 時間)
+    # 台灣時間下午 3:00 = UTC 早上 07:00
+    - cron: '0 7 * * *'
+  # 允許手動觸發 (方便測試)
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. 把程式碼抓下來
+    - uses: actions/checkout@v3
+
+    # 2. 安裝 .NET 環境
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 9.0.x  # 你的專案是用 .NET 8 嗎？如果是 6 或 7 要改一下
+
+    # 3. 還原套件
+    - name: Restore dependencies
+      run: dotnet restore metastock-sync/metastock-sync.csproj
+
+    # 4. 執行同步程式
+    - name: Run Sync App
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore
+      env:
+        # 這裡把 GitHub Secrets 注入到環境變數
+        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
