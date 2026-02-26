@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
 using System.Text;
+using System.Text.Json;
+using Npgsql;
 
 namespace metastock_api.Controllers.Api
 {
@@ -22,20 +23,17 @@ namespace metastock_api.Controllers.Api
         {
             try
             {
-                // 1. 取得 Supabase 設定
-                var supabaseUrl = "https://ilpzjjzaxqdmvlvpiukc.supabase.co";
-                var supabaseKey = _configuration["Supabase:Key"];
-
-                if (string.IsNullOrEmpty(supabaseKey))
+                // 1. 取得 PostgreSQL 連線字串
+                var connectionString = _configuration.GetConnectionString("PostgreSQL");
+                if (string.IsNullOrEmpty(connectionString))
                 {
-                    return BadRequest("Supabase Key not configured");
+                    return BadRequest("PostgreSQL connection string not configured");
                 }
 
                 // 2. 從證交所取得每日收盤行情 (全部股票)
-                // API: https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
                 var twseResponse = await _httpClient.GetAsync("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL");
                 twseResponse.EnsureSuccessStatusCode();
-                
+
                 var content = await twseResponse.Content.ReadAsStringAsync();
                 var twseData = JsonSerializer.Deserialize<List<TwseStockDayData>>(content);
 
@@ -44,13 +42,12 @@ namespace metastock_api.Controllers.Api
                     return BadRequest("No data fetched from TWSE");
                 }
 
-                // 3. 資料轉換 (TWSE -> Supabase Format)
-                var dailyPrices = new List<object>();
-                var today = DateTime.Today.ToString("yyyy-MM-dd"); // 使用今日日期，或從 API 資料中解析日期如果有的話 (STOCK_DAY_ALL 通常是當日)
+                // 3. 資料轉換
+                var today = DateTime.Today;
+                var records = new List<(string stockId, decimal open, decimal high, decimal low, decimal close, long volume, decimal change, decimal changePct)>();
 
                 foreach (var item in twseData)
                 {
-                    // 過濾掉非股票 (代號長度 > 4 或是權證等) - 這裡先簡單過濾長度
                     if (item.Code.Length > 4) continue;
 
                     if (decimal.TryParse(item.OpeningPrice, out var open) &&
@@ -60,46 +57,52 @@ namespace metastock_api.Controllers.Api
                         long.TryParse(item.TradeVolume, out var volume) &&
                         decimal.TryParse(item.Change, out var change))
                     {
-                        dailyPrices.Add(new
-                        {
-                            stock_id = item.Code,
-                            date = today, // 注意: STOCK_DAY_ALL 沒有回傳日期欄位，通常是「當下交易日」的資料。如果要精確，需另行處理。
-                            open = open,
-                            high = high,
-                            low = low,
-                            close = close,
-                            volume = volume,
-                            change = change,
-                            // change_percent 需自行計算: change / (close - change) * 100
-                            change_percent = (close - change) != 0 ? Math.Round(change / (close - change) * 100, 2) : 0
-                        });
+                        var changePct = (close - change) != 0
+                            ? Math.Round(change / (close - change) * 100, 2) : 0;
+                        records.Add((item.Code, open, high, low, close, volume, change, changePct));
                     }
                 }
 
-                // 4. 分批寫入 Supabase (避免一次 Request 太大)
-                var batchSize = 1000;
-                var batches = dailyPrices.Chunk(batchSize);
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("apikey", supabaseKey);
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {supabaseKey}");
-                // Prefer: resolution=merge-duplicates 會執行 upsert (如果 PK 衝突則更新)
-                client.DefaultRequestHeaders.Add("Prefer", "resolution=merge-duplicates");
+                // 4. 分批寫入 PostgreSQL (INSERT ON CONFLICT = Upsert)
+                await using var conn = new NpgsqlConnection(connectionString);
+                await conn.OpenAsync();
 
-                foreach (var batch in batches)
+                foreach (var batch in records.Chunk(500))
                 {
-                    var json = JsonSerializer.Serialize(batch);
-                    var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await client.PostAsync($"{supabaseUrl}/rest/v1/daily_prices", httpContent);
-                    
-                    if (!response.IsSuccessStatusCode)
+                    var sb = new StringBuilder();
+                    sb.Append("INSERT INTO prices (stock_id, date, open, high, low, close, volume, change, change_pct) VALUES ");
+
+                    var parameters = new List<NpgsqlParameter>();
+                    int idx = 0;
+
+                    for (int i = 0; i < batch.Length; i++)
                     {
-                        var error = await response.Content.ReadAsStringAsync();
-                        // 這裡可以記錄 Log，暫時先 return error
-                        return StatusCode((int)response.StatusCode, new { error = $"Failed to sync batch: {error}" });
+                        if (i > 0) sb.Append(", ");
+                        sb.Append($"(@p{idx}, @p{idx + 1}, @p{idx + 2}, @p{idx + 3}, @p{idx + 4}, @p{idx + 5}, @p{idx + 6}, @p{idx + 7}, @p{idx + 8})");
+
+                        var r = batch[i];
+                        parameters.Add(new NpgsqlParameter($"@p{idx++}", r.stockId));
+                        parameters.Add(new NpgsqlParameter($"@p{idx++}", today));
+                        parameters.Add(new NpgsqlParameter($"@p{idx++}", r.open));
+                        parameters.Add(new NpgsqlParameter($"@p{idx++}", r.high));
+                        parameters.Add(new NpgsqlParameter($"@p{idx++}", r.low));
+                        parameters.Add(new NpgsqlParameter($"@p{idx++}", r.close));
+                        parameters.Add(new NpgsqlParameter($"@p{idx++}", r.volume));
+                        parameters.Add(new NpgsqlParameter($"@p{idx++}", r.change));
+                        parameters.Add(new NpgsqlParameter($"@p{idx++}", r.changePct));
                     }
+
+                    sb.Append(" ON CONFLICT (stock_id, date) DO UPDATE SET ");
+                    sb.Append("open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low, ");
+                    sb.Append("close = EXCLUDED.close, volume = EXCLUDED.volume, ");
+                    sb.Append("change = EXCLUDED.change, change_pct = EXCLUDED.change_pct");
+
+                    await using var cmd = new NpgsqlCommand(sb.ToString(), conn);
+                    cmd.Parameters.AddRange(parameters.ToArray());
+                    await cmd.ExecuteNonQueryAsync();
                 }
 
-                return Ok(new { message = $"Synced {dailyPrices.Count} daily price records successfully" });
+                return Ok(new { message = $"Synced {records.Count} daily price records successfully" });
             }
             catch (Exception ex)
             {

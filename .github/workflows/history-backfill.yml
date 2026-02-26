@@ -1,0 +1,33 @@
+name: History Backfill (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      weeks:
+        description: 'Backfill Weeks (How many weeks to look back)'
+        required: true
+        default: '1'
+        type: string
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # 設定 6 小時超時，避免跑太久被卡住
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore metastock-sync/metastock-sync.csproj
+
+    - name: Run History Backfill
+      # 這裡就是關鍵！我們把您剛剛學會的指令寫在這裡
+      # GitHub 會自動讀取您輸入的 weeks 參數
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --all-stocks --weeks ${{ inputs.weeks }}
+      env:
+        PG_CONNECTION: ${{ secrets.PG_CONNECTION }}

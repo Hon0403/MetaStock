@@ -2,9 +2,8 @@ name: Daily Stock Sync
 
 on:
   schedule:
-    # 設定排程時間 (這是 UTC 時間)
-    # 台灣時間下午 3:00 = UTC 早上 07:00
-    - cron: '0 7 * * *'
+    # 台灣時間 21:30 = UTC 13:30，週一到週五
+    - cron: '30 13 * * 1-5'
   # 允許手動觸發 (方便測試)
   workflow_dispatch:
 
@@ -31,4 +30,4 @@ jobs:
       run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore
       env:
         # 這裡把 GitHub Secrets 注入到環境變數
-        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        PG_CONNECTION: ${{ secrets.PG_CONNECTION }}
