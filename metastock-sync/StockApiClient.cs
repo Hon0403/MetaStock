@@ -240,7 +240,12 @@ namespace MetaStockSync
                 if (!doc.RootElement.TryGetProperty("stat", out var status)
                     || status.GetString() != "OK")
                 {
-                    Console.WriteLine($"{itemTypeName} API 回應失敗");
+                    var statStr = status.GetString() ?? "";
+                    if (statStr.Contains("沒有") || statStr.Contains("無資料") || statStr.Contains("查無") || string.IsNullOrEmpty(statStr))
+                        Console.WriteLine($"[提示] {itemTypeName} 無資料 (可能是假日或尚未結算)");
+                    else
+                        Console.WriteLine($"{itemTypeName} API 回應狀態異常: {statStr}");
+                    
                     return new List<T>();
                 }
 
@@ -715,6 +720,14 @@ namespace MetaStockSync
                         }
                     }
                 }
+                else
+                {
+                    var statStr = root.TryGetProperty("stat", out var s) ? s.GetString() ?? "" : "";
+                    if (statStr.Contains("沒有") || statStr.Contains("無資料") || statStr.Contains("查無") || string.IsNullOrEmpty(statStr))
+                        Console.WriteLine($"[提示] 歷史股價 (全市場) {dateStr} 無資料 (可能是假日或尚未結算)");
+                    else
+                        Console.WriteLine($"[錯誤] 取得 {dateStr} 收盤行情狀態異常: {statStr}");
+                }
             }
             catch (Exception ex)
             {
@@ -779,6 +792,14 @@ namespace MetaStockSync
                     }
                 }
             }
+            else
+            {
+                var statStr = root.TryGetProperty("stat", out var s) ? s.GetString() ?? "" : "";
+                if (statStr.Contains("沒有") || statStr.Contains("無資料") || statStr.Contains("查無") || string.IsNullOrEmpty(statStr))
+                    Console.WriteLine($"[提示] 融資融券 {date:yyyy-MM-dd} 無資料 (可能是假日)");
+                else
+                    Console.WriteLine($"[錯誤] 融資融券 API 回應狀態異常: {statStr}");
+            }
 
             Console.WriteLine($"已取得 {date:yyyy-MM-dd} 全市場融資融券資料，共 {list.Count} 筆");
             return list;
@@ -828,7 +849,12 @@ namespace MetaStockSync
                 if (!doc.RootElement.TryGetProperty("stat", out var status)
                     || status.GetString() != "OK")
                 {
-                    Console.WriteLine("當沖交易資料 API 回應失敗");
+                    var statStr = status.GetString() ?? "";
+                    if (statStr.Contains("沒有") || statStr.Contains("無資料") || statStr.Contains("查無") || string.IsNullOrEmpty(statStr))
+                        Console.WriteLine($"[提示] 當沖交易資料 {dateStr} 無資料 (可能是假日)");
+                    else
+                        Console.WriteLine($"當沖交易資料 API 回應狀態異常: {statStr}");
+                    
                     return new List<DayTrade>();
                 }
 
