@@ -328,3 +328,19 @@ COMMENT ON COLUMN brokers.type IS '券商類型';
 COMMENT ON COLUMN brokers.created_at IS '建立時間';
 COMMENT ON COLUMN brokertrades.created_at IS '建立時間';
 COMMENT ON COLUMN financials.created_at IS '建立時間';
+
+-- ----------------------------------------------------------------------------
+-- 14. [NEW] 資料表層級的中文註解 (Table Comments)
+-- ----------------------------------------------------------------------------
+COMMENT ON TABLE stocks IS '股票基本資料';
+COMMENT ON TABLE prices IS '每日收盤行情與成交量';
+COMMENT ON TABLE institutional IS '三大法人每日買賣超';
+COMMENT ON TABLE revenues IS '每月營業收入';
+COMMENT ON TABLE shareholders IS '集保戶股權分散表 (每週)';
+COMMENT ON TABLE margins IS '信用交易 (融資融券) 每日餘額';
+COMMENT ON TABLE valuations IS '每日估值 (本益比、殖利率、股價淨值比)';
+COMMENT ON TABLE daytrades IS '當日沖銷交易量與金額';
+COMMENT ON TABLE dividends IS '除權息公告資訊';
+COMMENT ON TABLE brokers IS '券商與分點基本資料';
+COMMENT ON TABLE brokertrades IS '券商分點每日買賣進出';
+COMMENT ON TABLE financials IS '季底財務報表 (綜合損益)';
