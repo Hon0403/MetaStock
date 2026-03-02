@@ -302,3 +302,29 @@ COMMENT ON COLUMN financials.eps IS '每股盈餘 (EPS)';
 COMMENT ON COLUMN financials.gross_margin IS '毛利率 (%)';
 COMMENT ON COLUMN financials.operating_margin IS '營益率 (%)';
 COMMENT ON COLUMN financials.net_profit_margin IS '淨利率 (%)';
+-- ----------------------------------------------------------------------------
+-- 13. [NEW] 補充缺漏的欄位註解
+-- ----------------------------------------------------------------------------
+COMMENT ON COLUMN stocks.industry IS '產業別';
+COMMENT ON COLUMN prices.created_at IS '建立時間';
+COMMENT ON COLUMN institutional.stock_id IS '股票代號';
+COMMENT ON COLUMN institutional.date IS '交易日期';
+COMMENT ON COLUMN institutional.created_at IS '建立時間';
+COMMENT ON COLUMN revenues.created_at IS '建立時間';
+COMMENT ON COLUMN shareholders.stock_id IS '股票代號';
+COMMENT ON COLUMN shareholders.created_at IS '建立時間';
+COMMENT ON COLUMN margins.stock_id IS '股票代號';
+COMMENT ON COLUMN margins.date IS '交易日期';
+COMMENT ON COLUMN margins.created_at IS '建立時間';
+COMMENT ON COLUMN valuations.created_at IS '建立時間';
+COMMENT ON COLUMN daytrades.stock_id IS '股票代號';
+COMMENT ON COLUMN daytrades.date IS '交易日期';
+COMMENT ON COLUMN daytrades.created_at IS '建立時間';
+COMMENT ON COLUMN dividends.stock_id IS '股票代號';
+COMMENT ON COLUMN dividends.created_at IS '建立時間';
+COMMENT ON COLUMN brokers.broker_id IS '券商代號';
+COMMENT ON COLUMN brokers.broker_name IS '券商名稱';
+COMMENT ON COLUMN brokers.type IS '券商類型';
+COMMENT ON COLUMN brokers.created_at IS '建立時間';
+COMMENT ON COLUMN brokertrades.created_at IS '建立時間';
+COMMENT ON COLUMN financials.created_at IS '建立時間';

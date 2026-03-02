@@ -65,6 +65,7 @@ var pipelines = new List<Task>
     RunMarginsPipeline(tradingDays, api, repo),
     RunValuationPipeline(tradingDays, api, repo),
     RunDayTradesPipeline(tradingDays, api, repo),
+    RunInstitutionalPipeline(tradingDays, api, repo),
     RunDividendsPipeline(weekRanges, api, repo),
     RunRevenuePipeline(api, repo),
     RunShareholdersPipeline(targets, fridays, api, repo),
@@ -154,6 +155,29 @@ static async Task RunDayTradesPipeline(
         await Task.Delay(7000);
     }
     Console.WriteLine("[當沖] Pipeline 完成");
+}
+
+static async Task RunInstitutionalPipeline(
+    List<DateTime> dates,
+    StockApiClient api,
+    StockRepository repo)
+{
+    Console.WriteLine($"[三大法人] 開始，共 {dates.Count} 天");
+    foreach (var date in dates)
+    {
+        try
+        {
+            if (await repo.ExistsAsync(new InstitutionalTrade { Date = date }))
+            {
+                continue;
+            }
+            var data = await api.FetchInstitutionalAsync(date);
+            await repo.BatchSaveAsync(data, "三大法人買賣超");
+        }
+        catch { /* 假日無資料，略過 */ }
+        await Task.Delay(7000);
+    }
+    Console.WriteLine("[三大法人] Pipeline 完成");
 }
 
 static async Task RunDividendsPipeline(

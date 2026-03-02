@@ -773,7 +773,7 @@ namespace MetaStockSync
                     return new List<DayTrade>();
                 }
 
-                // TWTB4U 的資料在 tables[1].data
+                // TWTB4U 的資料可能是 tables[0].data (或是檢查 title 包含 "當日沖銷交易")
                 var tables = doc.RootElement.GetProperty("tables");
                 JsonElement? dataArray = null;
                 foreach (var table in tables.EnumerateArray())
