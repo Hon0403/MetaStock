@@ -159,7 +159,32 @@ public class StockRepository
         cmd.Parameters.AddRange(parameters.ToArray());
 
         var result = await cmd.ExecuteScalarAsync();
-        return result is true;
+        return result is true || result?.ToString() == "True";
+    }
+
+    public async Task<bool> HasPriceMonthDataAsync(string stockId, DateTime monthDate)
+    {
+        var startDate = new DateTime(monthDate.Year, monthDate.Month, 1);
+        var endDate = startDate.AddMonths(1);
+
+        var sql = @"
+            SELECT EXISTS(
+                SELECT 1 FROM prices 
+                WHERE stock_id = @StockId 
+                  AND date >= @StartDate 
+                  AND date < @EndDate 
+                LIMIT 1
+            )";
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("StockId", stockId);
+        cmd.Parameters.AddWithValue("StartDate", startDate);
+        cmd.Parameters.AddWithValue("EndDate", endDate);
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result is true || result?.ToString() == "True";
     }
 
     /// <summary>

@@ -263,23 +263,29 @@ static async Task RunPriceHistoryPipeline(
     StockApiClient api,
     StockRepository repo)
 {
-    Console.WriteLine($"[歷史股價] 開始，{stocks.Count} 檔 × {weekDates.Count} 週");
+    // 將 Date 轉為不重複的月份 (每個月 1 號)
+    var uniqueMonths = weekDates.Select(d => new DateTime(d.Year, d.Month, 1)).Distinct().ToList();
+
+    Console.WriteLine($"[歷史股價] 開始，{stocks.Count} 檔 × {uniqueMonths.Count} 個月");
     int count = 0;
-    foreach (var queryDate in weekDates)
+
+    foreach (var monthDate in uniqueMonths)
     {
         foreach (var stock in stocks)
         {
             try
             {
-                // 已有資料就跳過
-                if (await repo.ExistsAsync(new DailyPrice { StockId = stock.StockId, Date = queryDate }))
+                // 如果這個月已經有資料，就跳過 (避免即使是連續假日也重複戳 API)
+                if (await repo.HasPriceMonthDataAsync(stock.StockId, monthDate))
                 {
                     continue;
                 }
 
-                var data = await api.FetchPriceHistoryAsync(stock.StockId, queryDate);
+                var data = await api.FetchPriceHistoryAsync(stock.StockId, monthDate);
                 if (data.Count > 0)
+                {
                     await repo.BatchSaveAsync(data, "歷史股價");
+                }
 
                 count++;
                 if (count % 50 == 0)
@@ -287,12 +293,14 @@ static async Task RunPriceHistoryPipeline(
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[歷史股價] {stock.StockId} {queryDate:MM/dd} 失敗: {ex.Message}");
+                Console.WriteLine($"[歷史股價] {stock.StockId} {monthDate:yyyy/MM} 失敗: {ex.Message}");
             }
+
+            // 只要有去戳 TWSE API (沒有被 continue 跳過)，就等待 7 秒避免被鎖 IP
             await Task.Delay(7000);
         }
     }
-    Console.WriteLine($"[歷史股價] Pipeline 完成，共處理 {count} 筆");
+    Console.WriteLine($"[歷史股價] Pipeline 完成，共處理 {count} 筆 API 請求");
 }
 
 static async Task RunBrokerTradesPipeline(
