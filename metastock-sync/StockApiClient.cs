@@ -532,24 +532,23 @@ namespace MetaStockSync
                 var doc = new HtmlDocument();
                 doc.LoadHtml(initHtml);
 
-                // Step 2: 取出 ASP.NET 隱藏欄位 (__VIEWSTATE 等)
-                var viewState = doc.DocumentNode.SelectSingleNode("//input[@name='__VIEWSTATE']")?.GetAttributeValue("value", "");
-                var eventValidation = doc.DocumentNode.SelectSingleNode("//input[@name='__EVENTVALIDATION']")?.GetAttributeValue("value", "");
-                var viewStateGenerator = doc.DocumentNode.SelectSingleNode("//input[@name='__VIEWSTATEGENERATOR']")?.GetAttributeValue("value", "");
+                // Step 2: 取出新的隱藏欄位 (SYNCHRONIZER)
+                var syncToken = doc.DocumentNode.SelectSingleNode("//input[@id='SYNCHRONIZER_TOKEN']")?.GetAttributeValue("value", "");
+                var syncUri = doc.DocumentNode.SelectSingleNode("//input[@id='SYNCHRONIZER_URI']")?.GetAttributeValue("value", "");
+                var method = doc.DocumentNode.SelectSingleNode("//input[@id='method']")?.GetAttributeValue("value", "");
+                var firDate = doc.DocumentNode.SelectSingleNode("//input[@id='firDate']")?.GetAttributeValue("value", "");
 
                 // Step 3: 建構 POST 表單資料
                 var formData = new Dictionary<string, string>
                 {
-                    { "__EVENTTARGET", "" },
-                    { "__EVENTARGUMENT", "" },
-                    { "__VIEWSTATE", viewState ?? "" },
-                    { "__VIEWSTATEGENERATOR", viewStateGenerator ?? "" },
-                    { "__EVENTVALIDATION", eventValidation ?? "" },
-
-                    { "scDate", dateStr },
-                    { "selectType", "1" },
-                    { "StockId", stockId },
-                    { "btnQuery", "查詢" }
+                    { "SYNCHRONIZER_TOKEN", syncToken ?? "" },
+                    { "SYNCHRONIZER_URI", syncUri ?? "/portal/zh/smWeb/qryStock" },
+                    { "method", method ?? "submit" },
+                    { "firDate", firDate ?? dateStr },
+                    { "scaDate", dateStr },
+                    { "sqlMethod", "StockNo" },
+                    { "stockNo", stockId },
+                    { "stockName", "" }
                 };
 
                 var content = new FormUrlEncodedContent(formData);
@@ -566,7 +565,10 @@ namespace MetaStockSync
                 resultDoc.LoadHtml(resultHtml);
 
                 // 尋找表格列 (tr)
-                var rows = resultDoc.DocumentNode.SelectNodes("//table//tr");
+                var tables = resultDoc.DocumentNode.SelectNodes("//table");
+                var rows = tables != null && tables.Count > 1
+                    ? tables[1].SelectNodes(".//tr")
+                    : tables?.FirstOrDefault()?.SelectNodes(".//tr");
 
                 if (rows == null || rows.Count == 0)
                 {
@@ -591,7 +593,7 @@ namespace MetaStockSync
                     if (cols == null || cols.Count < 4) continue;
 
                     var levelText = cols[0].InnerText.Trim();
-                    var sharesText = cols[2].InnerText.Trim();
+                    var sharesText = cols[3].InnerText.Trim(); // index 2 is 人數(accounts), index 3 is 股數(shares)
 
 
                     if (!int.TryParse(levelText, out int level)) continue;

@@ -55,8 +55,9 @@ if (!targets.Any())
 }
 
 // 6. 準備日期集合
-var tradingDays = BuildRecentTradingDays(weeks * 5); // 每週 5 個交易日
 var fridays = BuildRecentFridays(weeks);
+var earliestDate = fridays.Any() ? fridays.Last().AddDays(-4) : DateTime.Today.AddDays(-weeks * 7);
+var tradingDays = BuildRecentTradingDays(earliestDate, DateTime.Today);
 var weekRanges = BuildWeekRanges(fridays);
 
 // 7. 建立 Pipeline 清單
@@ -69,15 +70,9 @@ var pipelines = new List<Task>
     RunDividendsPipeline(weekRanges, api, repo),
     RunRevenuePipeline(api, repo),
     RunShareholdersPipeline(targets, fridays, api, repo),
-    RunPriceHistoryPipeline(targets, tradingDays, api, repo)
+    RunPriceHistoryPipeline(targets, tradingDays, api, repo),
+    RunBrokerTradesPipeline(targets, tradingDays.LastOrDefault(), api, repo)
 };
-
-// 券商分點：僅在指定股票時才跑
-if (!string.IsNullOrEmpty(stockId))
-{
-    pipelines.Add(RunBrokerTradesPipeline(stockId, api, repo));
-}
-
 // 8. 啟動並行 Pipeline
 Console.WriteLine($"啟動 {pipelines.Count} 條 Pipeline 並行抓取...");
 await Task.WhenAll(pipelines);
@@ -290,27 +285,38 @@ static async Task RunPriceHistoryPipeline(
             Console.WriteLine($"[歷史股價] {date:yyyy/MM/dd} 失敗: {ex.Message}");
         }
 
-        // 打完一次全市場行情 MI_INDEX 後休眠 7 秒，避免被 TWSE 鎖 IP
         await Task.Delay(7000);
     }
-    
+
     Console.WriteLine($"[歷史股價] Pipeline 完成，總計寫入 {count} 筆行情紀錄");
 }
 
 static async Task RunBrokerTradesPipeline(
-    string stockId,
+    List<StockInfo> stocks,
+    DateTime targetDate,
     StockApiClient api,
     StockRepository repo)
 {
-    Console.WriteLine($"[券商分點] 開始抓取 {stockId}...");
-    try
+    if (targetDate == default) return;
+
+    Console.WriteLine($"[券商分點] 開始抓取 {stocks.Count} 檔於 {targetDate:yyyy-MM-dd}...");
+    foreach (var stock in stocks)
     {
-        var data = await api.FetchBrokerTradesAsync(stockId, DateTime.Today);
-        await repo.BatchSaveAsync(data, "券商分點買賣日報");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[券商分點] {stockId} 失敗: {ex.Message}");
+        try
+        {
+            if (await repo.ExistsAsync(new BrokerTrade { StockId = stock.StockId, Date = targetDate }))
+            {
+                continue;
+            }
+            var data = await api.FetchBrokerTradesAsync(stock.StockId, targetDate);
+            if (data.Count > 0)
+                await repo.BatchSaveAsync(data, "券商分點買賣日報");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[券商分點] {stock.StockId} 失敗: {ex.Message}");
+        }
+        await Task.Delay(5000);
     }
     Console.WriteLine("[券商分點] Pipeline 完成");
 }
@@ -328,17 +334,16 @@ static string? GetArg(string[] args, string key)
     return null;
 }
 
-static List<DateTime> BuildRecentTradingDays(int days)
+static List<DateTime> BuildRecentTradingDays(DateTime startDate, DateTime endDate)
 {
     var list = new List<DateTime>();
-    var d = DateTime.Today;
-    while (list.Count < days)
+    var d = startDate;
+    while (d <= endDate)
     {
         if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
             list.Add(d);
-        d = d.AddDays(-1);
+        d = d.AddDays(1);
     }
-    list.Reverse();
     return list;
 }
 
