@@ -245,7 +245,7 @@ namespace MetaStockSync
                         Console.WriteLine($"[提示] {itemTypeName} 無資料 (可能是假日或尚未結算)");
                     else
                         Console.WriteLine($"{itemTypeName} API 回應狀態異常: {statStr}");
-                    
+
                     return new List<T>();
                 }
 
@@ -516,7 +516,7 @@ namespace MetaStockSync
         public async Task<List<Shareholders>> FetchSingleStockHistoryAsync(string stockId, DateTime queryDate)
         {
             var dateStr = queryDate.ToString("yyyyMMdd");
-            Console.WriteLine($"[爬蟲] 正在查詢 {dateStr} 的資料...");
+            Console.WriteLine($"[集保戶] 正在查詢 {stockId} 於 {dateStr} 的資料...");
 
             var resultList = new List<Shareholders>();
             // Update URL to the new one
@@ -548,7 +548,7 @@ namespace MetaStockSync
 
                     { "scDate", dateStr },
                     { "selectType", "1" },
-                    { "StockId", "" },
+                    { "StockId", stockId },
                     { "btnQuery", "查詢" }
                 };
 
@@ -677,7 +677,7 @@ namespace MetaStockSync
             var resultList = new List<DailyPrice>();
 
             Console.WriteLine($"[爬蟲] 正在查詢 {dateStr} 全市場收盤行情...");
-            try 
+            try
             {
                 var json = await _http.GetStringAsync(url);
                 using var doc = JsonDocument.Parse(json);
@@ -699,7 +699,7 @@ namespace MetaStockSync
                                         if (string.IsNullOrEmpty(stockId)) continue;
                                         if (allowedStockIds != null && !allowedStockIds.Contains(stockId)) continue;
 
-                                        try 
+                                        try
                                         {
                                             resultList.Add(new DailyPrice
                                             {
@@ -711,7 +711,7 @@ namespace MetaStockSync
                                                 Low = ParseDecimal(row[7].GetString()),
                                                 Close = ParseDecimal(row[8].GetString())
                                             });
-                                        } 
+                                        }
                                         catch { }
                                     }
                                 }
@@ -854,7 +854,7 @@ namespace MetaStockSync
                         Console.WriteLine($"[提示] 當沖交易資料 {dateStr} 無資料 (可能是假日)");
                     else
                         Console.WriteLine($"當沖交易資料 API 回應狀態異常: {statStr}");
-                    
+
                     return new List<DayTrade>();
                 }
 
@@ -870,9 +870,9 @@ namespace MetaStockSync
                     }
                 }
 
-                if (dataArray == null)
+                if (dataArray == null || dataArray.Value.GetArrayLength() == 0)
                 {
-                    Console.WriteLine("當沖交易資料: 找不到 data");
+                    Console.WriteLine($"[提示] 當沖交易資料 {dateStr} 無資料 (可能是假日或無交易)");
                     return new List<DayTrade>();
                 }
 
