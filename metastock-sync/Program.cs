@@ -69,7 +69,7 @@ var pipelines = new List<Task>
     RunDividendsPipeline(weekRanges, api, repo),
     RunRevenuePipeline(api, repo),
     RunShareholdersPipeline(targets, fridays, api, repo),
-    RunPriceHistoryPipeline(targets, fridays, api, repo)
+    RunPriceHistoryPipeline(targets, tradingDays, api, repo)
 };
 
 // 券商分點：僅在指定股票時才跑
@@ -259,48 +259,42 @@ static async Task RunShareholdersPipeline(
 
 static async Task RunPriceHistoryPipeline(
     List<StockInfo> stocks,
-    List<DateTime> weekDates,
+    List<DateTime> tradingDays,
     StockApiClient api,
     StockRepository repo)
 {
-    // 將 Date 轉為不重複的月份 (每個月 1 號)
-    var uniqueMonths = weekDates.Select(d => new DateTime(d.Year, d.Month, 1)).Distinct().ToList();
-
-    Console.WriteLine($"[歷史股價] 開始，{stocks.Count} 檔 × {uniqueMonths.Count} 個月");
+    Console.WriteLine($"[歷史股價] 開始，共 {tradingDays.Count} 個交易日");
     int count = 0;
+    var allowedIds = stocks.Select(s => s.StockId).ToHashSet();
 
-    foreach (var monthDate in uniqueMonths)
+    foreach (var date in tradingDays)
     {
-        foreach (var stock in stocks)
+        try
         {
-            try
+            // 如果該日已經有大盤報價資料，就跳過 (避免重複抓取整天的全市場行情)
+            if (await repo.HasMarketPriceDataAsync(date))
             {
-                // 如果這個月已經有資料，就跳過 (避免即使是連續假日也重複戳 API)
-                if (await repo.HasPriceMonthDataAsync(stock.StockId, monthDate))
-                {
-                    continue;
-                }
-
-                var data = await api.FetchPriceHistoryAsync(stock.StockId, monthDate);
-                if (data.Count > 0)
-                {
-                    await repo.BatchSaveAsync(data, "歷史股價");
-                }
-
-                count++;
-                if (count % 50 == 0)
-                    Console.WriteLine($"[歷史股價] 已處理 {count} 筆...");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[歷史股價] {stock.StockId} {monthDate:yyyy/MM} 失敗: {ex.Message}");
+                continue;
             }
 
-            // 只要有去戳 TWSE API (沒有被 continue 跳過)，就等待 7 秒避免被鎖 IP
-            await Task.Delay(7000);
+            var data = await api.FetchMarketPricesByDateAsync(date, allowedIds);
+            if (data.Count > 0)
+            {
+                await repo.BatchSaveAsync(data, "歷史股價");
+                count += data.Count;
+                Console.WriteLine($"[歷史股價] {date:yyyy/MM/dd} 寫入 {data.Count} 筆全市場行情...");
+            }
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[歷史股價] {date:yyyy/MM/dd} 失敗: {ex.Message}");
+        }
+
+        // 打完一次全市場行情 MI_INDEX 後休眠 7 秒，避免被 TWSE 鎖 IP
+        await Task.Delay(7000);
     }
-    Console.WriteLine($"[歷史股價] Pipeline 完成，共處理 {count} 筆 API 請求");
+    
+    Console.WriteLine($"[歷史股價] Pipeline 完成，總計寫入 {count} 筆行情紀錄");
 }
 
 static async Task RunBrokerTradesPipeline(

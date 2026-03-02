@@ -187,6 +187,24 @@ public class StockRepository
         return result is true || result?.ToString() == "True";
     }
 
+    public async Task<bool> HasMarketPriceDataAsync(DateTime date)
+    {
+        var sql = @"
+            SELECT EXISTS(
+                SELECT 1 FROM prices 
+                WHERE date = @Date 
+                LIMIT 1
+            )";
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("Date", date.Date);
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result is true || result?.ToString() == "True";
+    }
+
     /// <summary>
     /// 透過反射取得 [JsonPropertyName] 對應的資料庫欄位映射
     /// </summary>

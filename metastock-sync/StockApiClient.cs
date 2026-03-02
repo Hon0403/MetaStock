@@ -664,6 +664,65 @@ namespace MetaStockSync
             );
         }
 
+        // 抓取全市場單日收盤行情 (MI_INDEX)
+        public async Task<List<DailyPrice>> FetchMarketPricesByDateAsync(DateTime date, HashSet<string>? allowedStockIds = null)
+        {
+            var dateStr = date.ToString("yyyyMMdd");
+            var url = $"https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&date={dateStr}&type=ALL";
+            var resultList = new List<DailyPrice>();
+
+            Console.WriteLine($"[爬蟲] 正在查詢 {dateStr} 全市場收盤行情...");
+            try 
+            {
+                var json = await _http.GetStringAsync(url);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("stat", out var stat) && stat.GetString() == "OK")
+                {
+                    if (root.TryGetProperty("tables", out var tables))
+                    {
+                        foreach (var table in tables.EnumerateArray())
+                        {
+                            if (table.TryGetProperty("title", out var titleProp) && titleProp.GetString()?.Contains("每日收盤行情(全部)") == true)
+                            {
+                                if (table.TryGetProperty("data", out var data))
+                                {
+                                    foreach (var row in data.EnumerateArray())
+                                    {
+                                        var stockId = row[0].GetString()?.Trim();
+                                        if (string.IsNullOrEmpty(stockId)) continue;
+                                        if (allowedStockIds != null && !allowedStockIds.Contains(stockId)) continue;
+
+                                        try 
+                                        {
+                                            resultList.Add(new DailyPrice
+                                            {
+                                                StockId = stockId,
+                                                Date = date,
+                                                Volume = ParseLong(row[2].GetString()), // 成交股數
+                                                Open = ParseDecimal(row[5].GetString()),
+                                                High = ParseDecimal(row[6].GetString()),
+                                                Low = ParseDecimal(row[7].GetString()),
+                                                Close = ParseDecimal(row[8].GetString())
+                                            });
+                                        } 
+                                        catch { }
+                                    }
+                                }
+                                break; // 找到對應表格就結束
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[錯誤] 取得 {dateStr} 收盤行情失敗: {ex.Message}");
+            }
+            return resultList;
+        }
+
         // 抓取全市場 融資融券 (MI_MARGN)
         public async Task<List<Margins>> FetchMarginTradingAsync(DateTime date)
         {
