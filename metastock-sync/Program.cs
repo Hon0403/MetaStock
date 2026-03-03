@@ -78,7 +78,7 @@ if (shardIndex == 0)
     pipelines.Add(RunDayTradesPipeline(tradingDays, api, repo));
     pipelines.Add(RunInstitutionalPipeline(tradingDays, api, repo));
     pipelines.Add(RunDividendsPipeline(weekRanges, api, repo));
-    pipelines.Add(RunRevenuePipeline(api, repo));
+    pipelines.Add(RunRevenuePipeline(weeks, api, repo));
 
     // 歷史股價由於是整天全市場抓取，也建議只由第一台機器執行，避免 10 倍冗餘流量
     pipelines.Add(RunPriceHistoryPipeline(allStocks, tradingDays, api, repo));
@@ -94,7 +94,7 @@ if (shardIndex == 0)
 if (!skipHeavy)
 {
     pipelines.Add(RunShareholdersPipeline(targets, fridays, api, repo));
-    pipelines.Add(RunBrokerTradesPipeline(targets, tradingDays.LastOrDefault(), api, repo));
+    pipelines.Add(RunBrokerTradesPipeline(targets, tradingDays, api, repo));
 }
 // 8. 啟動並行 Pipeline
 Console.WriteLine($"啟動 {pipelines.Count} 條 Pipeline 並行抓取...");
@@ -221,14 +221,28 @@ static async Task RunDividendsPipeline(
 }
 
 static async Task RunRevenuePipeline(
+    int weeks,
     StockApiClient api,
     StockRepository repo)
 {
-    Console.WriteLine("[月營收] 開始 (自動更新最近兩月)");
-    // 營收通常在下個月 10 號才公佈，所以我們一次抓最近兩個月
-    var months = new List<DateTime> { DateTime.Today, DateTime.Today.AddMonths(-1) };
+    Console.WriteLine($"[月營收] 開始 (自動回補最近 {weeks} 週對應月份)");
 
-    foreach (var date in months)
+    // 計算需要回補的月份 (從今天回推 weeks)
+    var targetMonths = new List<DateTime>();
+    var current = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    var earliest = DateTime.Today.AddDays(-7 * weeks);
+    var earliestMonth = new DateTime(earliest.Year, earliest.Month, 1);
+
+    while (current >= earliestMonth)
+    {
+        targetMonths.Add(current);
+        current = current.AddMonths(-1);
+    }
+    // 額外多抓一個月確保銜接
+    if (!targetMonths.Contains(earliestMonth.AddMonths(-1)))
+        targetMonths.Add(earliestMonth.AddMonths(-1));
+
+    foreach (var date in targetMonths)
     {
         try
         {
@@ -341,30 +355,37 @@ static async Task RunPriceHistoryPipeline(
 
 static async Task RunBrokerTradesPipeline(
     List<StockInfo> stocks,
-    DateTime targetDate,
+    List<DateTime> dates,
     StockApiClient api,
     StockRepository repo)
 {
-    if (targetDate == default) return;
+    if (dates == null || !dates.Any()) return;
 
-    Console.WriteLine($"[券商分點] 開始抓取 {stocks.Count} 檔於 {targetDate:yyyy-MM-dd}...");
-    foreach (var stock in stocks)
+    Console.WriteLine($"[券商分點] 開始抓取 {stocks.Count} 檔股票在 {dates.Count} 個交易日的資料...");
+
+    // 按照日期排序回補 (由舊到新)
+    var sortedDates = dates.OrderBy(d => d).ToList();
+
+    foreach (var targetDate in sortedDates)
     {
-        try
+        foreach (var stock in stocks)
         {
-            if (await repo.ExistsAsync(new BrokerTrade { StockId = stock.StockId, Date = targetDate }))
+            try
             {
-                continue;
+                if (await repo.ExistsAsync(new BrokerTrade { StockId = stock.StockId, Date = targetDate }))
+                {
+                    continue;
+                }
+                var data = await api.FetchBrokerTradesAsync(stock.StockId, targetDate);
+                if (data.Count > 0)
+                    await repo.BatchSaveAsync(data, "券商分點買賣日報");
             }
-            var data = await api.FetchBrokerTradesAsync(stock.StockId, targetDate);
-            if (data.Count > 0)
-                await repo.BatchSaveAsync(data, "券商分點買賣日報");
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[券商分點] {stock.StockId} {targetDate:yyyy-MM-dd} 失敗: {ex.Message}");
+            }
+            await Task.Delay(5000);
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[券商分點] {stock.StockId} 失敗: {ex.Message}");
-        }
-        await Task.Delay(5000);
     }
     Console.WriteLine("[券商分點] Pipeline 完成");
 }
