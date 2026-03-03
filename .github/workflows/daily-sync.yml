@@ -25,9 +25,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore metastock-sync/metastock-sync.csproj
 
-    # 4. 執行同步程式
+    # 4. 執行同步程式 (每天只跑輕量級盤後資料)
     - name: Run Sync App
-      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --skip-heavy
       env:
         # 這裡把 GitHub Secrets 注入到環境變數
         PG_CONNECTION: ${{ secrets.PG_CONNECTION }}

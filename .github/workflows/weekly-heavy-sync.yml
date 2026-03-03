@@ -1,0 +1,36 @@
+name: Weekly Heavy Sync
+
+on:
+  schedule:
+    # 台灣時間週六早上 08:00 (UTC 00:00) 執行，避開週間繁重交易時段
+    - cron: '0 0 * * 6'
+  # 允許手動觸發 (方便測試)
+  workflow_dispatch:
+    inputs:
+      weeks:
+        description: 'Backfill Weeks (How many weeks to look back)'
+        required: true
+        default: '1'
+        type: string
+
+jobs:
+  sync_heavy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # 設定 6 小時超時
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore metastock-sync/metastock-sync.csproj
+
+    - name: Run Heavy Sync App
+      # 手動觸發時吃 weeks 參數，排程自動執行時為 1 週
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks ${{ github.event.inputs.weeks || '1' }}
+      env:
+        PG_CONNECTION: ${{ secrets.PG_CONNECTION }}

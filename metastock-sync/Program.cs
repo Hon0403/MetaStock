@@ -16,6 +16,7 @@ var repo = new StockRepository(connectionString);
 var stockId = GetArg(args, "--stock");
 var weeks = int.Parse(GetArg(args, "--weeks") ?? "1");
 var updateFinancials = args.Contains("--financials");
+var skipHeavy = args.Contains("--skip-heavy");
 
 Console.WriteLine($"開始每日同步... 目標: {(string.IsNullOrEmpty(stockId) ? "全市場" : stockId)}, 回朔週數: {weeks}");
 
@@ -69,10 +70,14 @@ var pipelines = new List<Task>
     RunInstitutionalPipeline(tradingDays, api, repo),
     RunDividendsPipeline(weekRanges, api, repo),
     RunRevenuePipeline(api, repo),
-    RunShareholdersPipeline(targets, fridays, api, repo),
-    RunPriceHistoryPipeline(targets, tradingDays, api, repo),
-    RunBrokerTradesPipeline(targets, tradingDays.LastOrDefault(), api, repo)
+    RunPriceHistoryPipeline(targets, tradingDays, api, repo)
 };
+
+if (!skipHeavy)
+{
+    pipelines.Add(RunShareholdersPipeline(targets, fridays, api, repo));
+    pipelines.Add(RunBrokerTradesPipeline(targets, tradingDays.LastOrDefault(), api, repo));
+}
 // 8. 啟動並行 Pipeline
 Console.WriteLine($"啟動 {pipelines.Count} 條 Pipeline 並行抓取...");
 await Task.WhenAll(pipelines);
