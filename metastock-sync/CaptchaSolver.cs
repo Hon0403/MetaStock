@@ -17,7 +17,6 @@ namespace MetaStockSync
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 _pythonPath = "python"; // Windows 建議加入環境變數，或使用預設指令
-                // 如果本機路徑非得寫死不可，建議從設定檔讀取，但這裡改為相對路徑
                 _scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "solve_captcha.py");
             }
             else

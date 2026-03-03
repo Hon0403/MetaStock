@@ -21,20 +21,17 @@ namespace MetaStockSync
         {
             Console.WriteLine($"[爬蟲] 正在抓取 {stockId} 的分點資料 (自動解碼重試模式)...");
 
-            // 由於 ASP.NET Session 機制，我們每次抓取都建立一個獨立的 HttpClient (含 CookieContainer)
-            // 這樣可以確保每次重試都是全新的 Session，避免被 Server 判定過期或混亂
-            var handler = new HttpClientHandler { UseCookies = true, CookieContainer = new CookieContainer() };
-            using var client = new HttpClient(handler);
-
-            // 模擬瀏覽器標頭
-            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
             string baseUrl = "https://bsr.twse.com.tw/bshtm/bsMenu.aspx";
             string contentUrl = "https://bsr.twse.com.tw/bshtm/bsContent.aspx"; // Keep this just in case, but we post to baseUrl
 
             int maxRetries = 5;
             for (int i = 0; i < maxRetries; i++)
             {
+                // 將 HttpClient 移入迴圈內，確保每次重試都是全新的 Session 且會下載新驗證碼
+                var handler = new HttpClientHandler { UseCookies = true, CookieContainer = new CookieContainer() };
+                using var client = new HttpClient(handler);
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
                 try
                 {
                     // Step 1: GET bsMenu.aspx 取得 ViewState & Session
@@ -54,7 +51,7 @@ namespace MetaStockSync
                     var imgNode = doc.DocumentNode.SelectSingleNode("//img[contains(@src, 'CaptchaImage.aspx')]");
                     if (imgNode == null)
                     {
-                        Console.WriteLine($"  ⚠️ 找不到驗證碼圖片連結，HTML 結構可能變更。");
+                        Console.WriteLine($"  ⚠️ 第 {i + 1} 次: 找不到驗證碼連結，重試中...");
                         continue;
                     }
                     var captchaSrc = imgNode.GetAttributeValue("src", "");
@@ -66,7 +63,7 @@ namespace MetaStockSync
                     string captchaCode = _captchaSolver.Solve(captchaRes);
                     if (string.IsNullOrWhiteSpace(captchaCode) || captchaCode.Length < 5)
                     {
-                        Console.WriteLine($"  ⚠️ 第 {i + 1} 次: 驗證碼辨識失敗 (長度不足)，重試中...");
+                        Console.WriteLine($"  ⚠️ 第 {i + 1} 次: 辨識失敗 (長度不足: {captchaCode})，更換圖片重試...");
                         continue;
                     }
 
@@ -98,7 +95,7 @@ namespace MetaStockSync
 
                     if (resultHtml.Contains("驗證碼錯誤"))
                     {
-                        Console.WriteLine($"  ⚠️ 第 {i + 1} 次: 驗證碼輸入錯誤 ({captchaCode})，重試中...");
+                        Console.WriteLine($"  ⚠️ 第 {i + 1} 次: 驗證碼輸入錯誤 ({captchaCode})，更換圖片重試...");
                         continue;
                     }
 
