@@ -24,8 +24,8 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 9.0.x  # 你的專案是用 .NET 8 嗎？如果是 6 或 7 要改一下
-
+        dotnet-version: 9.0.x
+        
     - name: Setup Python
       uses: actions/setup-python@v4
       with:
@@ -41,9 +41,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore metastock-sync/metastock-sync.csproj
 
-    # 4. 執行同步程式 (10 分片全量抓取，含 1 年份全自動補漏)
+    # 4. 執行同步程式 (10 分片全量抓取，含 3 年份全自動補漏)
     - name: Run Sync App
-      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks 52 --total-shards 10 --shard-index ${{ matrix.shard }} --financials
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks 156 --total-shards 10 --shard-index ${{ matrix.shard }} --financials
       env:
         # 這裡把 GitHub Secrets 注入到環境變數
         PG_CONNECTION: ${{ secrets.PG_CONNECTION }}
