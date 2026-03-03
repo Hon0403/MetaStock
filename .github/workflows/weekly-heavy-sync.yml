@@ -47,6 +47,7 @@ jobs:
     - name: Run Heavy Sync App
       # 手動觸發時吃 weeks 參數，排程自動執行時為 1 週
       # 傳入 --total-shards 與 --shard-index 進行分散式抓取
-      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks ${{ github.event.inputs.weeks || '1' }} --total-shards 10 --shard-index ${{ matrix.shard }}
+      # 傳入 --total-shards 與 --shard-index 進行分散式抓取
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks ${{ github.event.inputs.weeks || '1' }} --total-shards 10 --shard-index ${{ matrix.shard }} --financials
       env:
         PG_CONNECTION: ${{ secrets.PG_CONNECTION }}

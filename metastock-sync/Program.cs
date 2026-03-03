@@ -22,14 +22,10 @@ var shardIndex = int.Parse(GetArg(args, "--shard-index") ?? "0");
 
 Console.WriteLine($"開始每日同步... 目標: {(string.IsNullOrEmpty(stockId) ? "全市場" : stockId)}, 回朔週數: {weeks}, 分片: {shardIndex + 1}/{totalShards}");
 
-// 3. 特殊模式：只更新財報就結束
-if (updateFinancials)
-{
-    var financials = await api.FetchFinancialsAsync();
-    await repo.BatchSaveAsync(financials, "財務報表");
-    Console.WriteLine("財報更新完成。");
-    return;
-}
+// 3. 特殊模式旗標處理
+// (不再直接 return，而是整合進 Pipeline)
+if (updateFinancials) Console.WriteLine("[參數] 將包含財報更新...");
+if (skipHeavy) Console.WriteLine("[參數] 將略過權商分點與集保戶...");
 
 // 4. 前置：抓股票清單 + 產業分類 + 今日股價
 var industryStocks = await api.FetchCompanyDetailsAsync();
@@ -72,17 +68,29 @@ var tradingDays = BuildRecentTradingDays(earliestDate, DateTime.Today);
 var weekRanges = BuildWeekRanges(fridays);
 
 // 7. 建立 Pipeline 清單
-var pipelines = new List<Task>
-{
-    RunMarginsPipeline(tradingDays, api, repo),
-    RunValuationPipeline(tradingDays, api, repo),
-    RunDayTradesPipeline(tradingDays, api, repo),
-    RunInstitutionalPipeline(tradingDays, api, repo),
-    RunDividendsPipeline(weekRanges, api, repo),
-    RunRevenuePipeline(api, repo),
-    RunPriceHistoryPipeline(targets, tradingDays, api, repo)
-};
+var pipelines = new List<Task>();
 
+// A. 全市場型 Pipeline (僅在第一個分片執行，避免重複抓取被封鎖)
+if (shardIndex == 0)
+{
+    pipelines.Add(RunMarginsPipeline(tradingDays, api, repo));
+    pipelines.Add(RunValuationPipeline(tradingDays, api, repo));
+    pipelines.Add(RunDayTradesPipeline(tradingDays, api, repo));
+    pipelines.Add(RunInstitutionalPipeline(tradingDays, api, repo));
+    pipelines.Add(RunDividendsPipeline(weekRanges, api, repo));
+    pipelines.Add(RunRevenuePipeline(api, repo));
+
+    // 歷史股價由於是整天全市場抓取，也建議只由第一台機器執行，避免 10 倍冗餘流量
+    pipelines.Add(RunPriceHistoryPipeline(allStocks, tradingDays, api, repo));
+
+    // 如果有指定 --financials，則執行財報更新
+    if (updateFinancials)
+    {
+        pipelines.Add(RunFinancialsPipeline(api, repo));
+    }
+}
+
+// B. 個股型 Pipeline (根據分片過濾後的 targets 執行)
 if (!skipHeavy)
 {
     pipelines.Add(RunShareholdersPipeline(targets, fridays, api, repo));
@@ -216,17 +224,42 @@ static async Task RunRevenuePipeline(
     StockApiClient api,
     StockRepository repo)
 {
-    Console.WriteLine("[月營收] 開始");
+    Console.WriteLine("[月營收] 開始 (自動更新最近兩月)");
+    // 營收通常在下個月 10 號才公佈，所以我們一次抓最近兩個月
+    var months = new List<DateTime> { DateTime.Today, DateTime.Today.AddMonths(-1) };
+
+    foreach (var date in months)
+    {
+        try
+        {
+            var data = await api.FetchRevenueAsync(date);
+            if (data.Any())
+                await repo.BatchSaveAsync(data, $"月營收 ({date:yyyy/MM})");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[月營收] {date:yyyy/MM} 失敗: {ex.Message}");
+        }
+        await Task.Delay(5000);
+    }
+    Console.WriteLine("[月營收] Pipeline 完成");
+}
+
+static async Task RunFinancialsPipeline(
+    StockApiClient api,
+    StockRepository repo)
+{
+    Console.WriteLine("[財報] 開始更新總表...");
     try
     {
-        var data = await api.FetchRevenueAsync(DateTime.Today);
-        await repo.BatchSaveAsync(data, "月營收");
+        var financials = await api.FetchFinancialsAsync();
+        await repo.BatchSaveAsync(financials, "財務報表");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"[月營收] 失敗: {ex.Message}");
+        Console.WriteLine($"[財報] 失敗: {ex.Message}");
     }
-    Console.WriteLine("[月營收] Pipeline 完成");
+    Console.WriteLine("[財報] Pipeline 完成");
 }
 
 static async Task RunShareholdersPipeline(
