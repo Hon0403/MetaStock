@@ -13,6 +13,10 @@ jobs:
   backfill:
     runs-on: ubuntu-latest
     timeout-minutes: 360 # 設定 6 小時超時，避免跑太久被卡住
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4] # 併行拆分回補任務
 
     steps:
     - uses: actions/checkout@v3
@@ -26,8 +30,7 @@ jobs:
       run: dotnet restore metastock-sync/metastock-sync.csproj
 
     - name: Run History Backfill
-      # 這裡就是關鍵！我們把您剛剛學會的指令寫在這裡
-      # GitHub 會自動讀取您輸入的 weeks 參數
-      run: dotnet run --project metastock-sync/metastock-sync.csproj --all-stocks --weeks ${{ inputs.weeks }}
+      # 傳入 --total-shards 與 --shard-index 進行並行回補
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks ${{ inputs.weeks }} --total-shards 5 --shard-index ${{ matrix.shard }}
       env:
         PG_CONNECTION: ${{ secrets.PG_CONNECTION }}

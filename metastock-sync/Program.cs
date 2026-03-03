@@ -17,8 +17,10 @@ var stockId = GetArg(args, "--stock");
 var weeks = int.Parse(GetArg(args, "--weeks") ?? "1");
 var updateFinancials = args.Contains("--financials");
 var skipHeavy = args.Contains("--skip-heavy");
+var totalShards = int.Parse(GetArg(args, "--total-shards") ?? "1");
+var shardIndex = int.Parse(GetArg(args, "--shard-index") ?? "0");
 
-Console.WriteLine($"開始每日同步... 目標: {(string.IsNullOrEmpty(stockId) ? "全市場" : stockId)}, 回朔週數: {weeks}");
+Console.WriteLine($"開始每日同步... 目標: {(string.IsNullOrEmpty(stockId) ? "全市場" : stockId)}, 回朔週數: {weeks}, 分片: {shardIndex + 1}/{totalShards}");
 
 // 3. 特殊模式：只更新財報就結束
 if (updateFinancials)
@@ -48,6 +50,14 @@ await repo.BatchSaveAsync(latestPrices, "今日股價");
 var targets = string.IsNullOrEmpty(stockId)
     ? allStocks
     : allStocks.Where(s => s.StockId == stockId).ToList();
+
+// 應用分片過濾 (僅在處理全市場且分片數 > 1 時)
+if (string.IsNullOrEmpty(stockId) && totalShards > 1)
+{
+    var originalCount = targets.Count;
+    targets = targets.Where((s, i) => i % totalShards == shardIndex).ToList();
+    Console.WriteLine($"[分片] 執行分片 {shardIndex}/{totalShards}，標的從 {originalCount} 縮減至 {targets.Count} 檔股票");
+}
 
 if (!targets.Any())
 {
