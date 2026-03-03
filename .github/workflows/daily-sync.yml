@@ -2,8 +2,8 @@ name: Daily Stock Sync
 
 on:
   schedule:
-    # 台灣時間 21:30 = UTC 13:30，週一到週五
-    - cron: '30 13 * * 1-5'
+    # 每 6 小時自動執行一次 (UTC 0/6/12/18 = 台灣 08:00/14:00/20:00/02:00)
+    - cron: '0 */6 * * *'
   # 允許手動觸發 (方便測試)
   workflow_dispatch:
 
