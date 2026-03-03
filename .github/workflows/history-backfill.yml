@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4] # 併行拆分回補任務
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] # 併行拆分回補任務
 
     steps:
     - uses: actions/checkout@v3
@@ -31,6 +31,6 @@ jobs:
 
     - name: Run History Backfill
       # 傳入 --total-shards 與 --shard-index 進行並行回補
-      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks ${{ inputs.weeks }} --total-shards 5 --shard-index ${{ matrix.shard }}
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks ${{ inputs.weeks }} --total-shards 10 --shard-index ${{ matrix.shard }}
       env:
         PG_CONNECTION: ${{ secrets.PG_CONNECTION }}

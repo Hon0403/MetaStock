@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4] # 將 2000 檔股票切成 5 份並列執行
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] # 將 2000 檔股票切成 10 份並列執行
 
     steps:
     - uses: actions/checkout@v3
@@ -36,6 +36,6 @@ jobs:
     - name: Run Heavy Sync App
       # 手動觸發時吃 weeks 參數，排程自動執行時為 1 週
       # 傳入 --total-shards 與 --shard-index 進行分散式抓取
-      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks ${{ github.event.inputs.weeks || '1' }} --total-shards 5 --shard-index ${{ matrix.shard }}
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks ${{ github.event.inputs.weeks || '1' }} --total-shards 10 --shard-index ${{ matrix.shard }}
       env:
         PG_CONNECTION: ${{ secrets.PG_CONNECTION }}
