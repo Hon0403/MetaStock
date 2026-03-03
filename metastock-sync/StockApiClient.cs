@@ -221,10 +221,10 @@ namespace MetaStockSync
         }
 
         private async Task<List<T>> FetchAndParseAsync<T>(
-            string url,                                    // 變動：API 網址
-            string dataPath,                               // 變動：JSON 路徑（"data" 或其他）
-            Func<JsonElement, T> parseItem,                // 變動：單筆解析邏輯
-            string itemTypeName)                           // 變動：顯示名稱
+            string url,
+            string dataPath,
+            Func<JsonElement, T> parseItem,
+            string itemTypeName)
         {
             try
             {
@@ -246,7 +246,6 @@ namespace MetaStockSync
                     return new List<T>();
                 }
 
-                // 固定：走訪陣列
                 var result = new List<T>();
                 var dataArray = doc.RootElement.GetProperty(dataPath);
 
@@ -257,7 +256,6 @@ namespace MetaStockSync
                     result.Add(parsed);
                 }
 
-                // 固定：顯示結果
                 Console.WriteLine($"成功取得 {result.Count} 筆{itemTypeName}");
                 return result;
             }
@@ -270,7 +268,7 @@ namespace MetaStockSync
 
         private async Task<List<T>> FetchOpenDataArrayAsync<T>(
             string url,
-            Func<JsonElement, T?> parseItem,  // 處理一筆 row
+            Func<JsonElement, T?> parseItem,
             string itemTypeName)
             where T : class
         {
@@ -427,7 +425,6 @@ namespace MetaStockSync
                     StockId = code,
                     Year = date.Year,
                     Month = month,
-                    Date = new DateTime(date.Year, month, 1),
                     Revenue = ParseDecimal(cols[2].InnerText),  // 當月營收
                     MomPct = ParseDecimal(cols[6].InnerText),   // 月增率
                     YoyPct = ParseDecimal(cols[8].InnerText)    // 年增率
@@ -437,77 +434,6 @@ namespace MetaStockSync
             Console.WriteLine($"已解析 {list.Count} 筆營收紀錄。");
             return list;
         }
-
-        /*public async Task<List<Shareholders>> FetchShareholdersAsync(List<StockInfo> stocks)
-        {
-            Console.WriteLine("正在抓取集保戶股權分散表...");
-
-            var allowedStockIds = stocks.Select(s => s.StockId).ToHashSet();
-
-            var shareholdersUrl = "https://smart.tdcc.com.tw/opendata/getOD.ashx?id=1-5";
-            var shareholdersCsv = await _http.GetStringAsync(shareholdersUrl);
-            var shareholdersDoc = shareholdersCsv.Split("\n");
-
-            var tempMap = new Dictionary<string, Shareholders>();
-
-            foreach (var row in shareholdersDoc.Skip(1))
-            {
-                var cells = row.Split(",");
-                if (cells.Length < 5) continue;
-
-                var dateStr = cells[0];
-                var stockId = cells[1].Trim();
-                var level = int.Parse(cells[2]); // 持股分級
-                var shares = long.Parse(cells[4]); // 股數
-
-                if (!allowedStockIds.Contains(stockId)) continue;
-
-                // 2. 如果這檔股票還沒出現過，先建立一個空的物件放進字典
-                if (!tempMap.ContainsKey(stockId))
-                {
-                    tempMap[stockId] = new Shareholders
-                    {
-                        StockId = stockId,
-                        Date = DateTime.ParseExact(dateStr, "yyyyMMdd", null) // 轉換日期
-                    };
-                }
-
-                var record = tempMap[stockId];
-                // 3. 根據分級 (Level) 決定把股數加到哪個籃子
-                record.TotalShare += shares; // 不管哪一級都加到總股數
-                if (level >= 1 && level <= 5)
-                {
-                    // level 1~5: < 10張 (散戶)
-                    record.RetailShare += shares;
-                }
-                else if (level >= 13)
-                {
-                    // level 13~15: > 400張 (大戶)
-                    record.BigShare += shares;
-
-                    if (level == 15)
-                    {
-                        // level 15: > 1000張 (超級大戶)
-                        record.SuperShare += shares;
-                    }
-                }
-            }
-
-            // 4. 最後算出百分比 (Pct) 並回傳列表
-            var resultList = tempMap.Values.ToList();
-            foreach (var item in resultList)
-            {
-                if (item.TotalShare > 0)
-                {
-                    item.SuperPct = Math.Round((decimal)item.SuperShare / item.TotalShare * 100, 2);
-                    item.BigPct = Math.Round((decimal)item.BigShare / item.TotalShare * 100, 2);
-                    item.RetailPct = Math.Round((decimal)item.RetailShare / item.TotalShare * 100, 2);
-                }
-            }
-
-            Console.WriteLine($"已解析 {tempMap.Count} 筆集保戶紀錄。");
-            return resultList;
-        }*/
 
         // 抓取單一股票指定日期的集保戶資料
         public async Task<List<Shareholders>> FetchSingleStockHistoryAsync(string stockId, DateTime queryDate)

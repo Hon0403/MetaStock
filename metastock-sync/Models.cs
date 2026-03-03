@@ -83,9 +83,6 @@ namespace MetaStockSync
         [JsonPropertyName("month")]
         public int Month { get; set; }
 
-        [JsonPropertyName("date")]
-        public DateTime Date { get; set; }
-
         [JsonPropertyName("revenue")]
         public decimal Revenue { get; set; }
 

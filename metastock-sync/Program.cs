@@ -63,7 +63,7 @@ if (!targets.Any())
 
 // 6. 準備日期集合
 var fridays = BuildRecentFridays(weeks);
-var earliestDate = fridays.Any() ? fridays.Last().AddDays(-4) : DateTime.Today.AddDays(-weeks * 7);
+var earliestDate = fridays.Any() ? fridays.First().AddDays(-4) : DateTime.Today.AddDays(-weeks * 7);
 var tradingDays = BuildRecentTradingDays(earliestDate, DateTime.Today);
 var weekRanges = BuildWeekRanges(fridays);
 
@@ -169,7 +169,10 @@ static async Task RunDayTradesPipeline(
             var data = await api.FetchDayTradesAsync(date);
             await repo.BatchSaveAsync(data, "當日沖銷交易");
         }
-        catch { /* 假日無資料，略過 */ }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[當沖] {date:yyyy-MM-dd} 失敗: {ex.Message}");
+        }
         await Task.Delay(7000);
     }
     Console.WriteLine("[當沖] Pipeline 完成");
