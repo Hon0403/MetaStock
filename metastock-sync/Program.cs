@@ -208,6 +208,10 @@ static async Task RunDividendsPipeline(
     {
         try
         {
+            if (await repo.HasDividendDataAsync(weekStart, weekEnd))
+            {
+                continue;
+            }
             var data = await api.FetchDividendsAsync(weekStart, weekEnd);
             await repo.BatchSaveAsync(data, "除權息公告");
         }
@@ -246,6 +250,10 @@ static async Task RunRevenuePipeline(
     {
         try
         {
+            if (await repo.HasRevenueDataAsync(date.Year, date.Month))
+            {
+                continue;
+            }
             var data = await api.FetchRevenueAsync(date);
             if (data.Any())
                 await repo.BatchSaveAsync(data, $"月營收 ({date:yyyy/MM})");

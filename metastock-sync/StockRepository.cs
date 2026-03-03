@@ -205,6 +205,42 @@ public class StockRepository
         return result is true || result?.ToString() == "True";
     }
 
+    public async Task<bool> HasRevenueDataAsync(int year, int month)
+    {
+        var sql = "SELECT EXISTS(SELECT 1 FROM revenues WHERE year = @Year AND month = @Month LIMIT 1)";
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("Year", year);
+        cmd.Parameters.AddWithValue("Month", month);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is true || result?.ToString() == "True";
+    }
+
+    public async Task<bool> HasDividendDataAsync(DateTime start, DateTime end)
+    {
+        var sql = "SELECT EXISTS(SELECT 1 FROM dividends WHERE ex_date >= @Start AND ex_date <= @End LIMIT 1)";
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("Start", start.Date);
+        cmd.Parameters.AddWithValue("End", end.Date);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is true || result?.ToString() == "True";
+    }
+
+    public async Task<bool> HasFinancialDataAsync(int year, int quarter)
+    {
+        var sql = "SELECT EXISTS(SELECT 1 FROM financials WHERE year = @Year AND quarter = @Quarter LIMIT 1)";
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("Year", year);
+        cmd.Parameters.AddWithValue("Quarter", quarter);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is true || result?.ToString() == "True";
+    }
+
     /// <summary>
     /// 透過反射取得 [JsonPropertyName] 對應的資料庫欄位映射
     /// </summary>
