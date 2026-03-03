@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Runtime.InteropServices;
 
 namespace MetaStockSync
 {
@@ -12,9 +13,28 @@ namespace MetaStockSync
 
         public CaptchaSolver()
         {
-            // 目前依照使用者環境硬並路徑
-            _pythonPath = @"C:\Users\user\AppData\Local\Programs\Python\Python311\python.exe";
-            _scriptPath = @"d:\個人專案\MetaStock\metastock-sync\solve_captcha.py";
+            // 自動偵測作業系統並設定 Python 指令
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                _pythonPath = "python"; // Windows 建議加入環境變數，或使用預設指令
+                // 如果本機路徑非得寫死不可，建議從設定檔讀取，但這裡改為相對路徑
+                _scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "solve_captcha.py");
+            }
+            else
+            {
+                // Linux (GitHub Actions) 環境使用 python3
+                _pythonPath = "python3";
+                _scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "solve_captcha.py");
+            }
+
+            // 如果是在開發環境 (dotnet run)，BaseDirectory 可能在 bin/Debug 下，
+            // 需要往上找或是直接檢查檔案是否存在
+            if (!File.Exists(_scriptPath))
+            {
+                // 嘗試找專案目錄下的路徑
+                var projectPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "solve_captcha.py");
+                if (File.Exists(projectPath)) _scriptPath = projectPath;
+            }
         }
 
         public string Solve(byte[] imageBytes)

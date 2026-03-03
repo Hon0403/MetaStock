@@ -30,6 +30,17 @@ jobs:
       with:
         dotnet-version: 9.0.x
 
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Python dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install -y libgl1
+        python -m pip install --upgrade pip
+        pip install ddddocr
+
     - name: Restore dependencies
       run: dotnet restore metastock-sync/metastock-sync.csproj
 

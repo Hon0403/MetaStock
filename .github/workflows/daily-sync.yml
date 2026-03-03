@@ -21,6 +21,17 @@ jobs:
       with:
         dotnet-version: 9.0.x  # 你的專案是用 .NET 8 嗎？如果是 6 或 7 要改一下
 
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Python dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install -y libgl1
+        python -m pip install --upgrade pip
+        pip install ddddocr
+
     # 3. 還原套件
     - name: Restore dependencies
       run: dotnet restore metastock-sync/metastock-sync.csproj
