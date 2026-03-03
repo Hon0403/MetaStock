@@ -41,9 +41,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore metastock-sync/metastock-sync.csproj
 
-    # 4. 執行同步程式 (10 分片全量抓取)
+    # 4. 執行同步程式 (10 分片全量抓取，含 4 週自動回補)
     - name: Run Sync App
-      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks 1 --total-shards 10 --shard-index ${{ matrix.shard }} --financials
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks 4 --total-shards 10 --shard-index ${{ matrix.shard }} --financials
       env:
         # 這裡把 GitHub Secrets 注入到環境變數
         PG_CONNECTION: ${{ secrets.PG_CONNECTION }}
