@@ -10,6 +10,11 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
     steps:
     # 1. 把程式碼抓下來
@@ -36,9 +41,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore metastock-sync/metastock-sync.csproj
 
-    # 4. 執行同步程式 (每天只跑輕量級盤後資料)
+    # 4. 執行同步程式 (10 分片全量抓取)
     - name: Run Sync App
-      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --skip-heavy
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks 1 --total-shards 10 --shard-index ${{ matrix.shard }} --financials
       env:
         # 這裡把 GitHub Secrets 注入到環境變數
         PG_CONNECTION: ${{ secrets.PG_CONNECTION }}
