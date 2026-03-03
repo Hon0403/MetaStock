@@ -35,7 +35,7 @@ jobs:
       run: |
         sudo apt-get update && sudo apt-get install -y libgl1
         python -m pip install --upgrade pip
-        pip install ddddocr
+        pip install ddddocr==1.4.11
 
     # 3. 還原套件
     - name: Restore dependencies
