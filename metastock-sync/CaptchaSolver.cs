@@ -40,6 +40,12 @@ namespace MetaStockSync
         {
             try
             {
+                if (imageBytes == null || imageBytes.Length < 100)
+                {
+                    Console.WriteLine($"  [診斷] 驗證碼圖片異常: {imageBytes?.Length ?? 0} bytes (太小，可能非圖片)");
+                    return string.Empty;
+                }
+
                 var base64Image = Convert.ToBase64String(imageBytes);
 
                 var startInfo = new ProcessStartInfo
@@ -69,11 +75,23 @@ namespace MetaStockSync
 
                 process.WaitForExit();
 
-                // 檢查是否有錯誤 (Python 腳本已改為輸出 "錯誤")
-                if (!string.IsNullOrEmpty(error) && (error.Contains("ERROR") || error.Contains("錯誤")))
+                // 檢查是否有錯誤
+                if (!string.IsNullOrEmpty(error))
                 {
-                    Console.WriteLine($"Python 錯誤: {error}");
-                    return string.Empty;
+                    // 任何 stderr 輸出都記錄下來，方便診斷
+                    if (error.Contains("ERROR") || error.Contains("錯誤") || error.Contains("Traceback") || error.Contains("ModuleNotFoundError"))
+                    {
+                        Console.WriteLine($"  [診斷] Python 錯誤: {error}");
+                        return string.Empty;
+                    }
+                }
+
+                // 如果結果為空，輸出診斷資訊
+                if (string.IsNullOrWhiteSpace(result))
+                {
+                    Console.WriteLine($"  [診斷] OCR 回傳空字串。腳本路徑: {_scriptPath}, 檔案存在: {File.Exists(_scriptPath)}, 圖片大小: {imageBytes.Length} bytes");
+                    if (!string.IsNullOrEmpty(error))
+                        Console.WriteLine($"  [診斷] Python stderr: {error}");
                 }
 
                 return result;

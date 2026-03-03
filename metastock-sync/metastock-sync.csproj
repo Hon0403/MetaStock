@@ -17,4 +17,11 @@
     <PackageReference Include="System.CommandLine" Version="2.0.2" />
   </ItemGroup>
 
+  <!-- 將 Python 驗證碼腳本複製到輸出目錄 -->
+  <ItemGroup>
+    <None Update="solve_captcha.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
