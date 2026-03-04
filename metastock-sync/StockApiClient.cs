@@ -767,7 +767,7 @@ namespace MetaStockSync
             {
                 Console.WriteLine("正在抓取 當沖交易資料...");
                 var json = await _http.GetStringAsync(
-                    $"https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&selectType=ALL&date={dateStr}");
+                    $"https://www.twse.com.tw/exchangeReport/TWTB4U?response=json&selectType=All&date={dateStr}");
                 var doc = JsonDocument.Parse(json);
 
                 // 檢查狀態
