@@ -23,7 +23,6 @@ var shardIndex = int.Parse(GetArg(args, "--shard-index") ?? "0");
 Console.WriteLine($"開始每日同步... 目標: {(string.IsNullOrEmpty(stockId) ? "全市場" : stockId)}, 回朔週數: {weeks}, 分片: {shardIndex + 1}/{totalShards}");
 
 // 3. 特殊模式旗標處理
-// (不再直接 return，而是整合進 Pipeline)
 if (updateFinancials) Console.WriteLine("[參數] 將包含財報更新...");
 if (skipHeavy) Console.WriteLine("[參數] 將略過權商分點與集保戶...");
 
@@ -68,39 +67,53 @@ var tradingDays = BuildRecentTradingDays(earliestDate, DateTime.Today);
 var weekRanges = BuildWeekRanges(fridays);
 
 // 7. 建立 Pipeline 清單
-var pipelines = new List<Task>();
+var fastPipelines = new List<Task>();
+var heavyPipelines = new List<Task>();
 
-// A. 全市場型 Pipeline (僅在第一個分片執行，避免重複抓取被封鎖)
+// A. 全市場型 Pipeline (極快，每日例行執行)
 if (shardIndex == 0)
 {
-    pipelines.Add(RunMarginsPipeline(tradingDays, api, repo));
-    pipelines.Add(RunValuationPipeline(tradingDays, api, repo));
-    pipelines.Add(RunDayTradesPipeline(tradingDays, api, repo));
-    pipelines.Add(RunInstitutionalPipeline(tradingDays, api, repo));
-    pipelines.Add(RunDividendsPipeline(weekRanges, api, repo));
-    pipelines.Add(RunRevenuePipeline(weeks, api, repo));
+    // 排序原則：最快、資料量最小的放前面先送出 Request
+    fastPipelines.Add(RunValuationPipeline(tradingDays, api, repo));       // 本益比 (極快)
+    fastPipelines.Add(RunDayTradesPipeline(tradingDays, api, repo));       // 當沖交易 (極快)
+    fastPipelines.Add(RunInstitutionalPipeline(tradingDays, api, repo));   // 三大法人 (極快)
+    fastPipelines.Add(RunMarginsPipeline(tradingDays, api, repo));         // 融資融券 (中等)
+    fastPipelines.Add(RunDividendsPipeline(weekRanges, api, repo));        // 除權息公告 (中等)
+    fastPipelines.Add(RunRevenuePipeline(weeks, api, repo));               // 月營收 (抓取 HTML 稍慢)
 
     // 歷史股價由於是整天全市場抓取，也建議只由第一台機器執行，避免 10 倍冗餘流量
-    pipelines.Add(RunPriceHistoryPipeline(allStocks, tradingDays, api, repo));
+    fastPipelines.Add(RunPriceHistoryPipeline(allStocks, tradingDays, api, repo)); // 每日收盤 (最慢)
 
     // 如果有指定 --financials，則執行財報更新
     if (updateFinancials)
     {
-        pipelines.Add(RunFinancialsPipeline(api, repo));
+        fastPipelines.Add(RunFinancialsPipeline(api, repo));
     }
 }
 
-// B. 個股型 Pipeline (根據分片過濾後的 targets 執行)
+// B. 個股型 Pipeline (極慢且有 IP 限制，根據分片過濾後的 targets 執行)
 if (!skipHeavy)
 {
-    pipelines.Add(RunShareholdersPipeline(targets, fridays, api, repo));
-    pipelines.Add(RunBrokerTradesPipeline(targets, tradingDays, api, repo));
+    heavyPipelines.Add(RunShareholdersPipeline(targets, fridays, api, repo));
+    heavyPipelines.Add(RunBrokerTradesPipeline(targets, tradingDays, api, repo));
 }
-// 8. 啟動並行 Pipeline
-Console.WriteLine($"啟動 {pipelines.Count} 條 Pipeline 並行抓取...");
-await Task.WhenAll(pipelines);
 
-Console.WriteLine("\n所有 Pipeline 完成！");
+// 8. 依序啟動 Pipeline (先跑快的，確保快的不會被慢的卡住)
+if (fastPipelines.Any())
+{
+    Console.WriteLine($"\n[階段 1] 啟動 {fastPipelines.Count} 條「快速 API」並行抓取...");
+    await Task.WhenAll(fastPipelines);
+    Console.WriteLine("[階段 1] 快速 API 全部執行完畢！");
+}
+
+if (!skipHeavy && heavyPipelines.Any())
+{
+    Console.WriteLine($"\n[階段 2] 啟動 {heavyPipelines.Count} 條「耗時 API (需台灣 IP)」並行抓取...");
+    await Task.WhenAll(heavyPipelines);
+    Console.WriteLine("[階段 2] 耗時 API 全部執行完畢！");
+}
+
+Console.WriteLine("\n所有 Pipeline 執行完畢！");
 
 // ============================================================
 // Pipeline 方法
