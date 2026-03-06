@@ -447,8 +447,13 @@ namespace MetaStockSync
 
             try
             {
+                // 使用獨立的 HttpClient 與 CookieContainer 確保 session 獨立
+                var handler = new HttpClientHandler { UseCookies = true, CookieContainer = new CookieContainer() };
+                using var localClient = new HttpClient(handler);
+                localClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+
                 // Step 1: 取得初始頁面與 ViewState
-                var initResponse = await _http.GetAsync(url);
+                var initResponse = await localClient.GetAsync(url);
                 initResponse.EnsureSuccessStatusCode();
                 var initHtml = await initResponse.Content.ReadAsStringAsync();
 
@@ -476,10 +481,10 @@ namespace MetaStockSync
 
                 var content = new FormUrlEncodedContent(formData);
 
+                // await Task.Delay(3000); // 移除不必要的固定延遲，改為安全間隔
+                await Task.Delay(1000); // 防火牆保護短暫延遲
 
-                await Task.Delay(3000);
-
-                var postResponse = await _http.PostAsync(url, content);
+                var postResponse = await localClient.PostAsync(url, content);
                 postResponse.EnsureSuccessStatusCode();
                 var resultHtml = await postResponse.Content.ReadAsStringAsync();
 
