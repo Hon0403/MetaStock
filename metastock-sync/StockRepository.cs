@@ -205,12 +205,13 @@ public class StockRepository
         return result is true || result?.ToString() == "True";
     }
 
-    public async Task<bool> HasRevenueDataAsync(int year, int month)
+    public async Task<bool> HasRevenueDataAsync(string stockId, int year, int month)
     {
-        var sql = "SELECT EXISTS(SELECT 1 FROM revenues WHERE year = @Year AND month = @Month LIMIT 1)";
+        var sql = "SELECT EXISTS(SELECT 1 FROM revenues WHERE stock_id = @StockId AND year = @Year AND month = @Month LIMIT 1)";
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
         await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("StockId", stockId);
         cmd.Parameters.AddWithValue("Year", year);
         cmd.Parameters.AddWithValue("Month", month);
         var result = await cmd.ExecuteScalarAsync();
@@ -237,6 +238,29 @@ public class StockRepository
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("Year", year);
         cmd.Parameters.AddWithValue("Quarter", quarter);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is true || result?.ToString() == "True";
+    }
+
+    public async Task<bool> HasBrokerTradeDataAsync(string stockId, DateTime date)
+    {
+        var sql = "SELECT EXISTS(SELECT 1 FROM brokertrades WHERE stock_id = @StockId AND date = @Date LIMIT 1)";
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("StockId", stockId);
+        cmd.Parameters.AddWithValue("Date", date.Date);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is true || result?.ToString() == "True";
+    }
+
+    public async Task<bool> HasDayTradeDataAsync(DateTime date)
+    {
+        var sql = "SELECT EXISTS(SELECT 1 FROM daytrades WHERE date = @Date LIMIT 1)";
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("Date", date.Date);
         var result = await cmd.ExecuteScalarAsync();
         return result is true || result?.ToString() == "True";
     }

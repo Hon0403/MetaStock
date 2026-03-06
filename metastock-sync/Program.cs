@@ -175,7 +175,7 @@ static async Task RunDayTradesPipeline(
     {
         try
         {
-            if (await repo.ExistsAsync(new DayTrade { Date = date }))
+            if (await repo.HasDayTradeDataAsync(date))
             {
                 continue;
             }
@@ -266,7 +266,8 @@ static async Task RunRevenuePipeline(
     {
         try
         {
-            if (await repo.HasRevenueDataAsync(date.Year, date.Month))
+            // 用台積電(2330)當作指標，如果有資料就代表當月全市場營收已經抓過了
+            if (await repo.HasRevenueDataAsync("2330", date.Year, date.Month))
             {
                 continue;
             }
@@ -396,7 +397,7 @@ static async Task RunBrokerTradesPipeline(
         {
             try
             {
-                if (await repo.ExistsAsync(new BrokerTrade { StockId = stock.StockId, Date = targetDate }))
+                if (await repo.HasBrokerTradeDataAsync(stock.StockId, targetDate))
                 {
                     continue;
                 }
