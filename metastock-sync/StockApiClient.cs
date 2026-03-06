@@ -481,7 +481,6 @@ namespace MetaStockSync
 
                 var content = new FormUrlEncodedContent(formData);
 
-                // await Task.Delay(3000); // 移除不必要的固定延遲，改為安全間隔
                 await Task.Delay(1000); // 防火牆保護短暫延遲
 
                 var postResponse = await localClient.PostAsync(url, content);
