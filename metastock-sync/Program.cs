@@ -113,6 +113,12 @@ if (!skipHeavy && heavyPipelines.Any())
     Console.WriteLine("[階段 2] 耗時 API 全部執行完畢！");
 }
 
+// 9. 最後同步券商基本檔
+if (!skipHeavy || shardIndex == 0)
+{
+    await repo.SyncBrokersFromTradesAsync();
+}
+
 Console.WriteLine("\n所有 Pipeline 執行完畢！");
 
 // ============================================================

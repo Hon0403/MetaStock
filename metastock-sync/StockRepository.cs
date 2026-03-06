@@ -265,6 +265,24 @@ public class StockRepository
         return result is true || result?.ToString() == "True";
     }
 
+    public async Task SyncBrokersFromTradesAsync()
+    {
+        Console.WriteLine("[維度同步] 開始從交易日報更新券商基本檔 (brokers)...");
+        var sql = @"
+            INSERT INTO brokers (broker_id, broker_name, type)
+            SELECT DISTINCT broker_id, broker_name, '未知'
+            FROM brokertrades
+            WHERE broker_id IS NOT NULL AND broker_name IS NOT NULL
+            ON CONFLICT (broker_id) DO NOTHING;";
+            
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.CommandTimeout = 300;
+        int rowsAffected = await cmd.ExecuteNonQueryAsync();
+        Console.WriteLine($"[維度同步] 完成！同步至 brokers 表。");
+    }
+
     /// <summary>
     /// 透過反射取得 [JsonPropertyName] 對應的資料庫欄位映射
     /// </summary>
