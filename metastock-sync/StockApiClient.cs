@@ -807,6 +807,9 @@ namespace MetaStockSync
                     var sid = row[0].GetString();
                     if (!IsValidStockId(sid)) continue;
 
+                    // 確認欄位數量足夠，避免小計列或格式不同列造成 IndexOutOfRangeException
+                    if (row.GetArrayLength() < 6) continue;
+
                     result.Add(new DayTrade
                     {
                         StockId = sid,
