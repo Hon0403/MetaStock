@@ -41,7 +41,7 @@ jobs:
       run: dotnet restore metastock-sync/metastock-sync.csproj
 
     - name: Run History Backfill
-      # 傳入 --total-shards 與 --shard-index 進行並行回補 (略過耗時的分點與集保戶 API)
-      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks ${{ inputs.weeks }} --total-shards 10 --shard-index ${{ matrix.shard }} --financials --skip-heavy
+      # 傳入 --total-shards 與 --shard-index 進行並行回補
+      run: dotnet run --project metastock-sync/metastock-sync.csproj --no-restore --weeks ${{ inputs.weeks }} --total-shards 10 --shard-index ${{ matrix.shard }} --financials
       env:
         PG_CONNECTION: ${{ secrets.PG_CONNECTION }}
